@@ -43,6 +43,12 @@ else
   exit 1
 fi
 
+for lib in "${tmpdir}"/libwhisper.so* "${tmpdir}"/libggml*.so*; do
+  if [ -f "${lib}" ]; then
+    install -m 0644 "${lib}" "${BIN_DIR}/$(basename "${lib}")"
+  fi
+done
+
 echo "Installed ${BINARY} to ${BIN_DIR}/${BINARY}"
 echo "Installed bundled whisper-cli to ${BIN_DIR}/whisper-cli"
 case ":$PATH:" in

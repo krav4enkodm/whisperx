@@ -20,6 +20,7 @@ curl -fsSL https://raw.githubusercontent.com/krav4enkodm/whisperx/main/scripts/i
 The installer downloads the latest GitHub Release binaries and installs:
 - `~/.local/bin/whisperx`
 - `~/.local/bin/whisper-cli` (bundled)
+- bundled `libwhisper.so*` / `libggml*.so*` runtime libraries
 
 If needed, add `~/.local/bin` to `PATH`.
 
