@@ -73,6 +73,28 @@ pub fn run(config: &AppConfig) -> Result<()> {
         failures += 1;
     }
 
+    let display_set = std::env::var("DISPLAY")
+        .map(|value| !value.trim().is_empty())
+        .unwrap_or(false);
+    print_info(
+        "x11 display",
+        if display_set {
+            "DISPLAY is set (mic mode available on X11)"
+        } else {
+            "DISPLAY not set (mic mode unavailable in this shell)"
+        },
+    );
+
+    let xdotool_ok = binaries::binary_available(Path::new(&config.xdotool_bin));
+    print_info(
+        "xdotool",
+        if xdotool_ok {
+            "found (mic text injection available)"
+        } else {
+            "not found (install xdotool for `whisperx mic` typing)"
+        },
+    );
+
     println!("\nEffective config:");
     println!("{}", toml::to_string_pretty(config)?);
 
@@ -123,6 +145,10 @@ fn print_check(ok: bool, name: &str, details: &str) {
     } else {
         println!("[fail] {name}: {details}");
     }
+}
+
+fn print_info(name: &str, details: &str) {
+    println!("[info] {name}: {details}");
 }
 
 fn check_writable_dir(path: &Path) -> Result<bool> {

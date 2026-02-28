@@ -1,5 +1,5 @@
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::{Command, Output, Stdio};
 use std::time::Duration;
 
@@ -12,19 +12,53 @@ use crate::cli::{OutputFormat, TranscribeArgs};
 use crate::config::AppConfig;
 use crate::models;
 
+#[derive(Debug, Clone)]
+pub struct TranscribeRequest {
+    pub input: PathBuf,
+    pub model: Option<String>,
+    pub output: OutputFormat,
+    pub no_convert: bool,
+    pub threads: Option<usize>,
+    pub language: Option<String>,
+    pub translate: bool,
+    pub passthrough: Vec<String>,
+}
+
+impl From<&TranscribeArgs> for TranscribeRequest {
+    fn from(args: &TranscribeArgs) -> Self {
+        Self {
+            input: args.input.clone(),
+            model: args.model.clone(),
+            output: args.output,
+            no_convert: args.no_convert,
+            threads: args.threads,
+            language: args.language.clone(),
+            translate: args.translate,
+            passthrough: args.passthrough.clone(),
+        }
+    }
+}
+
 pub fn run(config: &AppConfig, args: &TranscribeArgs) -> Result<()> {
-    if !args.input.exists() {
-        bail!("input file does not exist: {}", args.input.display());
+    let request = TranscribeRequest::from(args);
+    let content = run_request(config, &request)?;
+    print_output(request.output, &content);
+    Ok(())
+}
+
+pub fn run_request(config: &AppConfig, request: &TranscribeRequest) -> Result<String> {
+    if !request.input.exists() {
+        bail!("input file does not exist: {}", request.input.display());
     }
 
-    let model_name = args
+    let model_name = request
         .model
         .clone()
         .unwrap_or_else(|| config.default_model.clone());
     let model_path = models::ensure_model(config, &model_name)?;
 
     let timeout = Duration::from_secs(config.timeout_secs);
-    let (prepared_input, _temp_wav) = prepare_input(config, args, timeout)?;
+    let (prepared_input, _temp_wav) = prepare_input(config, request, timeout)?;
 
     let output_dir = tempfile::tempdir().context("failed to create temporary output directory")?;
     let output_base = output_dir.path().join("whisperx-output");
@@ -42,11 +76,11 @@ pub fn run(config: &AppConfig, args: &TranscribeArgs) -> Result<()> {
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
 
-    add_friendly_flags(&mut command, config, args);
-    add_output_flag(&mut command, args.output);
+    add_friendly_flags(&mut command, config, request);
+    add_output_flag(&mut command, request.output);
     binaries::apply_library_path_env(&mut command, &whisper_bin);
 
-    command.args(&args.passthrough);
+    command.args(&request.passthrough);
 
     let output = run_with_timeout(
         command,
@@ -54,20 +88,18 @@ pub fn run(config: &AppConfig, args: &TranscribeArgs) -> Result<()> {
         &format!("whisper-cli ({})", whisper_bin.display()),
     )?;
 
-    let result_path = output_file_path(&output_dir, args.output);
+    let result_path = output_file_path(&output_dir, request.output);
     if result_path.exists() {
         let content = fs::read_to_string(&result_path)
             .with_context(|| format!("failed reading {}", result_path.display()))?;
-        print_output(args.output, &content);
-        return Ok(());
+        return Ok(content);
     }
 
-    if args.output == OutputFormat::Txt {
+    if request.output == OutputFormat::Txt {
         let stdout = String::from_utf8_lossy(&output.stdout);
         let transcript = extract_transcript_from_stdout(&stdout);
         if !transcript.is_empty() {
-            println!("{transcript}");
-            return Ok(());
+            return Ok(transcript);
         }
     }
 
@@ -79,19 +111,42 @@ pub fn run(config: &AppConfig, args: &TranscribeArgs) -> Result<()> {
     );
 }
 
+pub fn transcribe_path_to_text(
+    config: &AppConfig,
+    input: &Path,
+    model: Option<String>,
+    threads: Option<usize>,
+    language: Option<String>,
+    translate: bool,
+    passthrough: Vec<String>,
+) -> Result<String> {
+    let request = TranscribeRequest {
+        input: input.to_path_buf(),
+        model,
+        output: OutputFormat::Txt,
+        no_convert: true,
+        threads,
+        language,
+        translate,
+        passthrough,
+    };
+
+    run_request(config, &request)
+}
+
 fn prepare_input(
     config: &AppConfig,
-    args: &TranscribeArgs,
+    request: &TranscribeRequest,
     timeout: Duration,
 ) -> Result<(PathBuf, Option<tempfile::NamedTempFile>)> {
-    let use_conversion = if args.no_convert {
+    let use_conversion = if request.no_convert {
         false
     } else {
         config.convert
     };
 
     if !use_conversion {
-        return Ok((args.input.clone(), None));
+        return Ok((request.input.clone(), None));
     }
 
     let temp_wav = Builder::new()
@@ -105,7 +160,7 @@ fn prepare_input(
         .arg("-nostdin")
         .arg("-y")
         .arg("-i")
-        .arg(&args.input)
+        .arg(&request.input)
         .arg("-ar")
         .arg("16000")
         .arg("-ac")
@@ -122,20 +177,20 @@ fn prepare_input(
     Ok((temp_wav.path().to_path_buf(), Some(temp_wav)))
 }
 
-fn add_friendly_flags(command: &mut Command, config: &AppConfig, args: &TranscribeArgs) {
-    if !has_passthrough_flag(&args.passthrough, &["-t", "--threads"]) {
-        let threads = args.threads.unwrap_or(config.threads);
+fn add_friendly_flags(command: &mut Command, config: &AppConfig, request: &TranscribeRequest) {
+    if !has_passthrough_flag(&request.passthrough, &["-t", "--threads"]) {
+        let threads = request.threads.unwrap_or(config.threads);
         command.arg("-t").arg(threads.to_string());
     }
 
-    if !has_passthrough_flag(&args.passthrough, &["-l", "--language"]) {
-        let language = args.language.as_deref().unwrap_or(&config.language);
+    if !has_passthrough_flag(&request.passthrough, &["-l", "--language"]) {
+        let language = request.language.as_deref().unwrap_or(&config.language);
         if !language.eq_ignore_ascii_case("auto") {
             command.arg("-l").arg(language);
         }
     }
 
-    if args.translate && !has_passthrough_flag(&args.passthrough, &["--translate"]) {
+    if request.translate && !has_passthrough_flag(&request.passthrough, &["--translate"]) {
         command.arg("--translate");
     }
 }

@@ -18,6 +18,9 @@ pub enum Commands {
     /// Transcribe an audio file
     Transcribe(TranscribeArgs),
 
+    /// Push-to-talk microphone dictation for Linux X11
+    Mic(MicArgs),
+
     /// Manage model registry and local cache
     Models {
         #[command(subcommand)]
@@ -98,6 +101,58 @@ pub struct TranscribeArgs {
     pub translate: bool,
 
     /// Pass-through whisper.cpp flags after `--`
-    #[arg(last = true, allow_hyphen_values = true)]
+    #[arg(allow_hyphen_values = true, num_args = 0..)]
+    pub passthrough: Vec<String>,
+}
+
+#[derive(Debug, Clone, Args)]
+#[command(trailing_var_arg = true)]
+pub struct MicArgs {
+    /// Global push-to-talk hotkey (X11 keyspec)
+    #[arg(long)]
+    pub hotkey: Option<String>,
+
+    /// Microphone source passed to ffmpeg pulse input
+    #[arg(long)]
+    pub source: Option<String>,
+
+    /// Ignore captured chunks shorter than this duration in seconds
+    #[arg(long)]
+    pub min_seconds: Option<f32>,
+
+    /// Path or command name for xdotool
+    #[arg(long)]
+    pub xdotool_bin: Option<String>,
+
+    /// Path or command name for ffmpeg (overrides config)
+    #[arg(long)]
+    pub ffmpeg_bin: Option<String>,
+
+    /// Model name from registry, defaults to config default_model
+    #[arg(long)]
+    pub model: Option<String>,
+
+    /// Number of whisper threads
+    #[arg(long)]
+    pub threads: Option<usize>,
+
+    /// Language code (use auto to disable explicit language)
+    #[arg(long)]
+    pub language: Option<String>,
+
+    /// Enable whisper-cli translate mode
+    #[arg(long)]
+    pub translate: bool,
+
+    /// Run a single press/release cycle and exit
+    #[arg(long)]
+    pub once: bool,
+
+    /// Do not type into active window; print transcript to stdout
+    #[arg(long)]
+    pub dry_run: bool,
+
+    /// Extra whisper.cpp flags passed through after `--`
+    #[arg(allow_hyphen_values = true, num_args = 0..)]
     pub passthrough: Vec<String>,
 }

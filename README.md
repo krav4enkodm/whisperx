@@ -8,6 +8,7 @@ It adds:
 - Automatic model ensure on transcription
 - Optional ffmpeg normalization to 16kHz mono WAV
 - Full whisper.cpp passthrough flags after `--`
+- Push-to-talk microphone dictation mode for Linux X11
 
 ## Install
 
@@ -35,11 +36,13 @@ whisperx transcribe audio.mp3
 
 Dependency:
 - `ffmpeg` must be installed on the machine.
+- `xdotool` is required for `whisperx mic` text injection.
 
 ## Commands
 
 ```bash
 whisperx transcribe <file>
+whisperx mic
 whisperx models list
 whisperx models install <name>
 whisperx models path
@@ -80,6 +83,32 @@ whisperx transcribe audio.mp3 -- --beam-size 5 --max-tokens 256
 
 If a flag appears in passthrough, it overrides friendly wrapper flags.
 
+## Microphone dictation (Linux X11)
+
+Start push-to-talk mode:
+
+```bash
+whisperx mic
+```
+
+Default behavior:
+- hold `Ctrl+Alt+Space` to record microphone audio
+- release key to transcribe and type text into the active window
+
+Useful flags:
+
+```bash
+whisperx mic --hotkey Ctrl+Alt+Space --source default
+whisperx mic --once --dry-run
+whisperx mic -- --beam-size 5
+```
+
+Optional launcher script:
+
+```bash
+scripts/start-mic.sh
+```
+
 ## Config file
 
 Default path:
@@ -93,9 +122,13 @@ default_model = "base.en"
 model_dir = "~/.cache/whisperx/models"
 whisper_bin = "auto"
 ffmpeg_bin = "ffmpeg"
+xdotool_bin = "xdotool"
 threads = 4
 language = "en"
 convert = true
+mic_hotkey = "Ctrl+Alt+Space"
+mic_source = "default"
+mic_min_seconds = 0.2
 timeout_secs = 3600
 ```
 
@@ -111,4 +144,5 @@ This checks:
 - `ffmpeg` availability
 - `whisper-cli` availability and runnable state (bundled or configured path)
 - model cache directory writability
+- x11 display/`xdotool` status for mic mode
 - effective config summary

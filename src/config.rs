@@ -10,9 +10,13 @@ pub struct AppConfig {
     pub model_dir: PathBuf,
     pub whisper_bin: String,
     pub ffmpeg_bin: String,
+    pub xdotool_bin: String,
     pub threads: usize,
     pub language: String,
     pub convert: bool,
+    pub mic_hotkey: String,
+    pub mic_source: String,
+    pub mic_min_seconds: f32,
     pub timeout_secs: u64,
 }
 
@@ -23,9 +27,13 @@ struct FileConfig {
     model_dir: Option<PathBuf>,
     whisper_bin: Option<String>,
     ffmpeg_bin: Option<String>,
+    xdotool_bin: Option<String>,
     threads: Option<usize>,
     language: Option<String>,
     convert: Option<bool>,
+    mic_hotkey: Option<String>,
+    mic_source: Option<String>,
+    mic_min_seconds: Option<f32>,
     timeout_secs: Option<u64>,
 }
 
@@ -36,9 +44,13 @@ impl Default for AppConfig {
             model_dir: default_model_dir(),
             whisper_bin: "auto".to_string(),
             ffmpeg_bin: "ffmpeg".to_string(),
+            xdotool_bin: "xdotool".to_string(),
             threads: 4,
             language: "en".to_string(),
             convert: true,
+            mic_hotkey: "Ctrl+Alt+Space".to_string(),
+            mic_source: "default".to_string(),
+            mic_min_seconds: 0.2,
             timeout_secs: 3600,
         }
     }
@@ -58,6 +70,9 @@ impl AppConfig {
         if let Some(ffmpeg_bin) = file.ffmpeg_bin {
             self.ffmpeg_bin = ffmpeg_bin;
         }
+        if let Some(xdotool_bin) = file.xdotool_bin {
+            self.xdotool_bin = xdotool_bin;
+        }
         if let Some(threads) = file.threads {
             self.threads = threads;
         }
@@ -66,6 +81,15 @@ impl AppConfig {
         }
         if let Some(convert) = file.convert {
             self.convert = convert;
+        }
+        if let Some(mic_hotkey) = file.mic_hotkey {
+            self.mic_hotkey = mic_hotkey;
+        }
+        if let Some(mic_source) = file.mic_source {
+            self.mic_source = mic_source;
+        }
+        if let Some(mic_min_seconds) = file.mic_min_seconds {
+            self.mic_min_seconds = mic_min_seconds;
         }
         if let Some(timeout_secs) = file.timeout_secs {
             self.timeout_secs = timeout_secs;
@@ -160,9 +184,13 @@ mod tests {
             model_dir: Some(PathBuf::from("~/models")),
             whisper_bin: Some("./bin/whisper-cli".to_string()),
             ffmpeg_bin: Some("/usr/bin/ffmpeg".to_string()),
+            xdotool_bin: Some("/usr/bin/xdotool".to_string()),
             threads: Some(8),
             language: Some("auto".to_string()),
             convert: Some(false),
+            mic_hotkey: Some("Ctrl+Shift+Space".to_string()),
+            mic_source: Some("alsa_input".to_string()),
+            mic_min_seconds: Some(0.35),
             timeout_secs: Some(123),
         };
 
@@ -172,9 +200,13 @@ mod tests {
         assert_eq!(config.model_dir, PathBuf::from("~/models"));
         assert_eq!(config.whisper_bin, "./bin/whisper-cli");
         assert_eq!(config.ffmpeg_bin, "/usr/bin/ffmpeg");
+        assert_eq!(config.xdotool_bin, "/usr/bin/xdotool");
         assert_eq!(config.threads, 8);
         assert_eq!(config.language, "auto");
         assert!(!config.convert);
+        assert_eq!(config.mic_hotkey, "Ctrl+Shift+Space");
+        assert_eq!(config.mic_source, "alsa_input");
+        assert_eq!(config.mic_min_seconds, 0.35);
         assert_eq!(config.timeout_secs, 123);
     }
 

@@ -3,6 +3,7 @@ mod cache;
 mod cli;
 mod config;
 mod doctor;
+mod mic;
 mod models;
 mod transcribe;
 
@@ -24,6 +25,10 @@ fn run() -> Result<()> {
         Commands::Transcribe(args) => {
             let (config, _) = config::load(cli.config.as_ref())?;
             transcribe::run(&config, &args)?;
+        }
+        Commands::Mic(args) => {
+            let (config, _) = config::load(cli.config.as_ref())?;
+            mic::run(&config, &args)?;
         }
         Commands::Models { command } => {
             let (config, _) = config::load(cli.config.as_ref())?;
