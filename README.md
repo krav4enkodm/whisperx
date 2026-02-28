@@ -109,6 +109,6 @@ whisperx doctor
 
 This checks:
 - `ffmpeg` availability
-- `whisper-cli` availability (bundled or configured path)
+- `whisper-cli` availability and runnable state (bundled or configured path)
 - model cache directory writability
 - effective config summary

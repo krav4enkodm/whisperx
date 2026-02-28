@@ -44,7 +44,7 @@ pub fn run(config: &AppConfig, args: &TranscribeArgs) -> Result<()> {
 
     add_friendly_flags(&mut command, config, args);
     add_output_flag(&mut command, args.output);
-    apply_library_path_env(&mut command, &whisper_bin);
+    binaries::apply_library_path_env(&mut command, &whisper_bin);
 
     command.args(&args.passthrough);
 
@@ -213,24 +213,6 @@ fn run_with_timeout(mut command: Command, timeout: Duration, label: &str) -> Res
     }
 
     Ok(output)
-}
-
-fn apply_library_path_env(command: &mut Command, whisper_bin: &PathBuf) {
-    let Some(parent) = whisper_bin.parent() else {
-        return;
-    };
-    if parent.as_os_str().is_empty() {
-        return;
-    }
-
-    let mut value = parent.to_string_lossy().to_string();
-    if let Ok(existing) = std::env::var("LD_LIBRARY_PATH")
-        && !existing.is_empty()
-    {
-        value.push(':');
-        value.push_str(&existing);
-    }
-    command.env("LD_LIBRARY_PATH", value);
 }
 
 fn extract_transcript_from_stdout(stdout: &str) -> String {

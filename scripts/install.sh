@@ -49,6 +49,16 @@ for lib in "${tmpdir}"/libwhisper.so* "${tmpdir}"/libggml*.so*; do
   fi
 done
 
+if ! ls "${BIN_DIR}"/libwhisper.so* >/dev/null 2>&1; then
+  echo "Release artifact is missing libwhisper runtime libraries. Please use a newer release." >&2
+  exit 1
+fi
+
+if ! ls "${BIN_DIR}"/libggml*.so* >/dev/null 2>&1; then
+  echo "Release artifact is missing libggml runtime libraries. Please use a newer release." >&2
+  exit 1
+fi
+
 echo "Installed ${BINARY} to ${BIN_DIR}/${BINARY}"
 echo "Installed bundled whisper-cli to ${BIN_DIR}/whisper-cli"
 case ":$PATH:" in

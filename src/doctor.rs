@@ -1,5 +1,6 @@
 use std::fs;
 use std::path::Path;
+use std::process::{Command, Stdio};
 
 use anyhow::{Result, bail};
 
@@ -29,14 +30,25 @@ pub fn run(config: &AppConfig) -> Result<()> {
     }
 
     let whisper_bin = binaries::resolve_whisper_bin(config);
-    let whisper_ok = binaries::binary_available(&whisper_bin);
-    let whisper_details = if whisper_ok {
-        format!("resolved to '{}'", whisper_bin.display())
+    let whisper_found = binaries::binary_available(&whisper_bin);
+    let whisper_runnable = if whisper_found {
+        check_whisper_runnable(&whisper_bin)
     } else {
+        false
+    };
+    let whisper_ok = whisper_found && whisper_runnable;
+    let whisper_details = if !whisper_found {
         format!(
             "resolved to '{}' (not found). Set whisper_bin in config if needed",
             whisper_bin.display()
         )
+    } else if !whisper_runnable {
+        format!(
+            "resolved to '{}' but failed to start (likely missing shared libraries)",
+            whisper_bin.display()
+        )
+    } else {
+        format!("resolved to '{}'", whisper_bin.display())
     };
     print_check(whisper_ok, "whisper-cli", &whisper_details);
     if !whisper_ok {
@@ -74,7 +86,7 @@ pub fn run(config: &AppConfig) -> Result<()> {
         }
         if !whisper_ok {
             println!(
-                "- Ensure bundled 'whisper-cli' is present next to 'whisperx', or set whisper_bin to a valid binary path"
+                "- Ensure bundled 'whisper-cli' and its shared libraries are present next to 'whisperx', or set whisper_bin to a valid system binary"
             );
         }
         if !model_dir_ok {
@@ -88,6 +100,21 @@ pub fn run(config: &AppConfig) -> Result<()> {
     }
 
     Ok(())
+}
+
+fn check_whisper_runnable(whisper_bin: &Path) -> bool {
+    let mut command = Command::new(whisper_bin);
+    command
+        .arg("--help")
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null());
+    binaries::apply_library_path_env(&mut command, whisper_bin);
+
+    command
+        .status()
+        .map(|status| status.success())
+        .unwrap_or(false)
 }
 
 fn print_check(ok: bool, name: &str, details: &str) {

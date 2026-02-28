@@ -1,4 +1,5 @@
 use std::path::{Path, PathBuf};
+use std::process::Command;
 
 use crate::config::AppConfig;
 
@@ -35,4 +36,22 @@ pub fn binary_available(path: &Path) -> bool {
     } else {
         which::which(path).is_ok()
     }
+}
+
+pub fn apply_library_path_env(command: &mut Command, whisper_bin: &Path) {
+    let Some(parent) = whisper_bin.parent() else {
+        return;
+    };
+    if parent.as_os_str().is_empty() {
+        return;
+    }
+
+    let mut value = parent.to_string_lossy().to_string();
+    if let Ok(existing) = std::env::var("LD_LIBRARY_PATH")
+        && !existing.is_empty()
+    {
+        value.push(':');
+        value.push_str(&existing);
+    }
+    command.env("LD_LIBRARY_PATH", value);
 }
