@@ -25,7 +25,7 @@ pub fn list(config: &AppConfig) -> Result<()> {
     let registry = load_registry()?;
 
     println!(
-        "{:<12} {:<10} {:<40} Description",
+        "{:<20} {:<10} {:<40} Description",
         "Model", "Installed", "File"
     );
     for model in registry {
@@ -33,7 +33,7 @@ pub fn list(config: &AppConfig) -> Result<()> {
         let installed = if path.exists() { "yes" } else { "no" };
         let description = model.description.unwrap_or_default();
         println!(
-            "{:<12} {:<10} {:<40} {}",
+            "{:<20} {:<10} {:<40} {}",
             model.name, installed, model.file, description
         );
     }

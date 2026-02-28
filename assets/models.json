@@ -1,11 +1,91 @@
 [
   {
+    "name": "tiny",
+    "file": "ggml-tiny.bin",
+    "url": "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.bin",
+    "sha256": null,
+    "size": null,
+    "description": "Tiny multilingual model"
+  },
+  {
+    "name": "tiny.en",
+    "file": "ggml-tiny.en.bin",
+    "url": "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.en.bin",
+    "sha256": null,
+    "size": null,
+    "description": "Tiny English-only model"
+  },
+  {
+    "name": "tiny-q5_1",
+    "file": "ggml-tiny-q5_1.bin",
+    "url": "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny-q5_1.bin",
+    "sha256": null,
+    "size": null,
+    "description": "Tiny multilingual model (Q5_1 quantized)"
+  },
+  {
+    "name": "tiny.en-q5_1",
+    "file": "ggml-tiny.en-q5_1.bin",
+    "url": "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.en-q5_1.bin",
+    "sha256": null,
+    "size": null,
+    "description": "Tiny English-only model (Q5_1 quantized)"
+  },
+  {
+    "name": "tiny-q8_0",
+    "file": "ggml-tiny-q8_0.bin",
+    "url": "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny-q8_0.bin",
+    "sha256": null,
+    "size": null,
+    "description": "Tiny multilingual model (Q8_0 quantized)"
+  },
+  {
+    "name": "base",
+    "file": "ggml-base.bin",
+    "url": "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.bin",
+    "sha256": null,
+    "size": null,
+    "description": "Base multilingual model"
+  },
+  {
     "name": "base.en",
     "file": "ggml-base.en.bin",
     "url": "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.en.bin",
     "sha256": null,
     "size": null,
-    "description": "Fast English model"
+    "description": "Base English-only model"
+  },
+  {
+    "name": "base-q5_1",
+    "file": "ggml-base-q5_1.bin",
+    "url": "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base-q5_1.bin",
+    "sha256": null,
+    "size": null,
+    "description": "Base multilingual model (Q5_1 quantized)"
+  },
+  {
+    "name": "base.en-q5_1",
+    "file": "ggml-base.en-q5_1.bin",
+    "url": "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.en-q5_1.bin",
+    "sha256": null,
+    "size": null,
+    "description": "Base English-only model (Q5_1 quantized)"
+  },
+  {
+    "name": "base-q8_0",
+    "file": "ggml-base-q8_0.bin",
+    "url": "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base-q8_0.bin",
+    "sha256": null,
+    "size": null,
+    "description": "Base multilingual model (Q8_0 quantized)"
+  },
+  {
+    "name": "small",
+    "file": "ggml-small.bin",
+    "url": "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.bin",
+    "sha256": null,
+    "size": null,
+    "description": "Small multilingual model"
   },
   {
     "name": "small.en",
@@ -13,7 +93,47 @@
     "url": "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.en.bin",
     "sha256": null,
     "size": null,
-    "description": "Higher quality English model"
+    "description": "Small English-only model"
+  },
+  {
+    "name": "small.en-tdrz",
+    "file": "ggml-small.en-tdrz.bin",
+    "url": "https://huggingface.co/akashmjn/tinydiarize-whisper.cpp/resolve/main/ggml-small.en-tdrz.bin",
+    "sha256": null,
+    "size": null,
+    "description": "Small English-only Tinydiarize model"
+  },
+  {
+    "name": "small-q5_1",
+    "file": "ggml-small-q5_1.bin",
+    "url": "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small-q5_1.bin",
+    "sha256": null,
+    "size": null,
+    "description": "Small multilingual model (Q5_1 quantized)"
+  },
+  {
+    "name": "small.en-q5_1",
+    "file": "ggml-small.en-q5_1.bin",
+    "url": "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.en-q5_1.bin",
+    "sha256": null,
+    "size": null,
+    "description": "Small English-only model (Q5_1 quantized)"
+  },
+  {
+    "name": "small-q8_0",
+    "file": "ggml-small-q8_0.bin",
+    "url": "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small-q8_0.bin",
+    "sha256": null,
+    "size": null,
+    "description": "Small multilingual model (Q8_0 quantized)"
+  },
+  {
+    "name": "medium",
+    "file": "ggml-medium.bin",
+    "url": "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-medium.bin",
+    "sha256": null,
+    "size": null,
+    "description": "Medium multilingual model"
   },
   {
     "name": "medium.en",
@@ -21,6 +141,102 @@
     "url": "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-medium.en.bin",
     "sha256": null,
     "size": null,
-    "description": "Best quality English model in this default registry"
+    "description": "Medium English-only model"
+  },
+  {
+    "name": "medium-q5_0",
+    "file": "ggml-medium-q5_0.bin",
+    "url": "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-medium-q5_0.bin",
+    "sha256": null,
+    "size": null,
+    "description": "Medium multilingual model (Q5_0 quantized)"
+  },
+  {
+    "name": "medium.en-q5_0",
+    "file": "ggml-medium.en-q5_0.bin",
+    "url": "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-medium.en-q5_0.bin",
+    "sha256": null,
+    "size": null,
+    "description": "Medium English-only model (Q5_0 quantized)"
+  },
+  {
+    "name": "medium-q8_0",
+    "file": "ggml-medium-q8_0.bin",
+    "url": "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-medium-q8_0.bin",
+    "sha256": null,
+    "size": null,
+    "description": "Medium multilingual model (Q8_0 quantized)"
+  },
+  {
+    "name": "large-v1",
+    "file": "ggml-large-v1.bin",
+    "url": "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v1.bin",
+    "sha256": null,
+    "size": null,
+    "description": "Large v1 multilingual model"
+  },
+  {
+    "name": "large-v2",
+    "file": "ggml-large-v2.bin",
+    "url": "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v2.bin",
+    "sha256": null,
+    "size": null,
+    "description": "Large v2 multilingual model"
+  },
+  {
+    "name": "large-v2-q5_0",
+    "file": "ggml-large-v2-q5_0.bin",
+    "url": "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v2-q5_0.bin",
+    "sha256": null,
+    "size": null,
+    "description": "Large v2 multilingual model (Q5_0 quantized)"
+  },
+  {
+    "name": "large-v2-q8_0",
+    "file": "ggml-large-v2-q8_0.bin",
+    "url": "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v2-q8_0.bin",
+    "sha256": null,
+    "size": null,
+    "description": "Large v2 multilingual model (Q8_0 quantized)"
+  },
+  {
+    "name": "large-v3",
+    "file": "ggml-large-v3.bin",
+    "url": "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3.bin",
+    "sha256": null,
+    "size": null,
+    "description": "Large v3 multilingual model"
+  },
+  {
+    "name": "large-v3-q5_0",
+    "file": "ggml-large-v3-q5_0.bin",
+    "url": "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3-q5_0.bin",
+    "sha256": null,
+    "size": null,
+    "description": "Large v3 multilingual model (Q5_0 quantized)"
+  },
+  {
+    "name": "large-v3-turbo",
+    "file": "ggml-large-v3-turbo.bin",
+    "url": "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3-turbo.bin",
+    "sha256": null,
+    "size": null,
+    "description": "Large v3 turbo multilingual model"
+  },
+  {
+    "name": "large-v3-turbo-q5_0",
+    "file": "ggml-large-v3-turbo-q5_0.bin",
+    "url": "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3-turbo-q5_0.bin",
+    "sha256": null,
+    "size": null,
+    "description": "Large v3 turbo multilingual model (Q5_0 quantized)"
+  },
+  {
+    "name": "large-v3-turbo-q8_0",
+    "file": "ggml-large-v3-turbo-q8_0.bin",
+    "url": "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3-turbo-q8_0.bin",
+    "sha256": null,
+    "size": null,
+    "description": "Large v3 turbo multilingual model (Q8_0 quantized)"
   }
 ]

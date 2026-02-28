@@ -2,6 +2,8 @@
 
 `whisperx` is a DX-first CLI wrapper around `whisper.cpp`.
 
+Upstream project: [ggml-org/whisper.cpp](https://github.com/ggml-org/whisper.cpp).
+
 It provides:
 - Config file with sane defaults
 - Model registry + local cache management
@@ -103,6 +105,9 @@ whisperx models install base.en
 whisperx transcribe /path/to/audio.wav
 ```
 
+`whisperx models list` includes the full upstream `whisper.cpp` GGML downloadable set (including quantized variants).
+Upstream model source list: [models/download-ggml-model.sh](https://github.com/ggml-org/whisper.cpp/blob/master/models/download-ggml-model.sh).
+
 ## Microphone mode (recommended setup)
 
 `whisperx mic toggle` is a pure control command and expects daemon to already be running.
@@ -189,6 +194,8 @@ whisperx transcribe audio.wav --no-convert
 ```
 
 Pass native whisper.cpp args after `--`:
+
+See upstream CLI/flags in [whisper.cpp](https://github.com/ggml-org/whisper.cpp).
 
 ```bash
 whisperx transcribe audio.mp3 -- --beam-size 5 --max-tokens 256
