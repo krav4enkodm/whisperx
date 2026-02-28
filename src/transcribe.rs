@@ -18,6 +18,7 @@ pub struct TranscribeRequest {
     pub model: Option<String>,
     pub output: OutputFormat,
     pub no_convert: bool,
+    pub no_timestamps: bool,
     pub threads: Option<usize>,
     pub language: Option<String>,
     pub translate: bool,
@@ -31,6 +32,7 @@ impl From<&TranscribeArgs> for TranscribeRequest {
             model: args.model.clone(),
             output: args.output,
             no_convert: args.no_convert,
+            no_timestamps: false,
             threads: args.threads,
             language: args.language.clone(),
             translate: args.translate,
@@ -125,6 +127,7 @@ pub fn transcribe_path_to_text(
         model,
         output: OutputFormat::Txt,
         no_convert: true,
+        no_timestamps: true,
         threads,
         language,
         translate,
@@ -192,6 +195,10 @@ fn add_friendly_flags(command: &mut Command, config: &AppConfig, request: &Trans
 
     if request.translate && !has_passthrough_flag(&request.passthrough, &["--translate"]) {
         command.arg("--translate");
+    }
+
+    if request.no_timestamps && !has_passthrough_flag(&request.passthrough, &["-nt", "--no-timestamps"]) {
+        command.arg("-nt");
     }
 }
 
