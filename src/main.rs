@@ -26,9 +26,9 @@ fn run() -> Result<()> {
             let (config, _) = config::load(cli.config.as_ref())?;
             transcribe::run(&config, &args)?;
         }
-        Commands::Mic(args) => {
+        Commands::Mic { command } => {
             let (config, _) = config::load(cli.config.as_ref())?;
-            mic::run(&config, &args)?;
+            mic::run(&config, &command)?;
         }
         Commands::Models { command } => {
             let (config, _) = config::load(cli.config.as_ref())?;

@@ -8,7 +8,7 @@ It adds:
 - Automatic model ensure on transcription
 - Optional ffmpeg normalization to 16kHz mono WAV
 - Full whisper.cpp passthrough flags after `--`
-- Push-to-talk microphone dictation mode for Linux X11
+- Microphone daemon + local trigger script flow for flexible shortcut binding
 
 ## Install
 
@@ -22,6 +22,7 @@ The installer downloads the latest GitHub Release binaries and installs:
 - `~/.local/bin/whisperx`
 - `~/.local/bin/whisper-cli` (bundled)
 - bundled `libwhisper.so*` / `libggml*.so*` runtime libraries
+- helper commands: `whisperx-mic-daemon`, `whisperx-mic-start`, `whisperx-mic-stop`, `whisperx-mic-toggle`, `whisperx-mic-status`, `whisperx-mic-shutdown`
 
 If needed, add `~/.local/bin` to `PATH`.
 
@@ -36,13 +37,16 @@ whisperx transcribe audio.mp3
 
 Dependency:
 - `ffmpeg` must be installed on the machine.
-- `xdotool` is required for `whisperx mic` text injection.
+- `xdotool` is required when microphone output should be typed into the active window.
 
 ## Commands
 
 ```bash
 whisperx transcribe <file>
-whisperx mic
+whisperx mic daemon
+whisperx mic start
+whisperx mic stop
+whisperx mic toggle
 whisperx models list
 whisperx models install <name>
 whisperx models path
@@ -83,31 +87,58 @@ whisperx transcribe audio.mp3 -- --beam-size 5 --max-tokens 256
 
 If a flag appears in passthrough, it overrides friendly wrapper flags.
 
-## Microphone dictation (Linux X11)
+## Microphone dictation daemon
 
-Start push-to-talk mode:
-
-```bash
-whisperx mic
-```
-
-Default behavior:
-- hold `Ctrl+Alt+Space` to record microphone audio
-- release key to transcribe and type text into the active window
-
-Useful flags:
+Start daemon (keep this running):
 
 ```bash
-whisperx mic --hotkey Ctrl+Alt+Space --source default
-whisperx mic --once --dry-run
-whisperx mic -- --beam-size 5
+whisperx mic daemon
 ```
 
-Optional launcher script:
+Trigger commands from terminal or shortcut scripts:
+
+```bash
+whisperx mic start
+whisperx mic stop
+whisperx mic toggle
+whisperx mic status
+whisperx mic shutdown
+```
+
+Daemon flags:
+
+```bash
+whisperx mic daemon --source default --min-seconds 0.2
+whisperx mic daemon --dry-run
+whisperx mic daemon -- --beam-size 5
+```
+
+Helper commands installed by `scripts/install.sh` (recommended for shortcut bindings):
+
+```bash
+whisperx-mic-daemon
+whisperx-mic-toggle
+whisperx-mic-start
+whisperx-mic-stop
+whisperx-mic-status
+whisperx-mic-shutdown
+```
+
+Repo scripts with equivalent behavior:
 
 ```bash
 scripts/start-mic.sh
+scripts/whisperx-mic-toggle.sh
+scripts/whisperx-mic-start.sh
+scripts/whisperx-mic-stop.sh
+scripts/whisperx-mic-status.sh
+scripts/whisperx-mic-shutdown.sh
 ```
+
+Recommended setup:
+- keep `whisperx-mic-daemon` running in background/session startup
+- bind desktop shortcut to `whisperx-mic-toggle`
+- optional hold-style setup: bind key-down -> `whisperx-mic-start`, key-up -> `whisperx-mic-stop` (if your hotkey tool supports key press/release hooks)
 
 ## Config file
 
@@ -126,11 +157,15 @@ xdotool_bin = "xdotool"
 threads = 4
 language = "en"
 convert = true
-mic_hotkey = "Ctrl+Alt+Space"
+mic_socket = "/tmp/whisperx-user/mic.sock"
 mic_source = "default"
 mic_min_seconds = 0.2
 timeout_secs = 3600
 ```
+
+`mic_socket` default:
+- Linux: `${XDG_RUNTIME_DIR}/whisperx/mic.sock` when `XDG_RUNTIME_DIR` exists
+- fallback: `/tmp/whisperx-$USER/mic.sock`
 
 ## Environment checks
 
@@ -144,5 +179,6 @@ This checks:
 - `ffmpeg` availability
 - `whisper-cli` availability and runnable state (bundled or configured path)
 - model cache directory writability
-- x11 display/`xdotool` status for mic mode
+- x11 display/`xdotool` status for mic typing mode
+- configured mic daemon socket path
 - effective config summary

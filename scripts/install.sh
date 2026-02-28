@@ -59,8 +59,20 @@ if ! ls "${BIN_DIR}"/libggml*.so* >/dev/null 2>&1; then
   exit 1
 fi
 
+for action in daemon start stop toggle status shutdown; do
+  helper="whisperx-mic-${action}"
+  cat > "${tmpdir}/${helper}" <<EOF
+#!/usr/bin/env bash
+set -euo pipefail
+bin_dir="\$(CDPATH= cd -- "\$(dirname -- "\$0")" && pwd)"
+exec "\${bin_dir}/whisperx" mic ${action} "\$@"
+EOF
+  install -m 0755 "${tmpdir}/${helper}" "${BIN_DIR}/${helper}"
+done
+
 echo "Installed ${BINARY} to ${BIN_DIR}/${BINARY}"
 echo "Installed bundled whisper-cli to ${BIN_DIR}/whisper-cli"
+echo "Installed mic helpers to ${BIN_DIR}/whisperx-mic-{daemon,start,stop,toggle,status,shutdown}"
 case ":$PATH:" in
   *":${BIN_DIR}:"*) ;;
   *)

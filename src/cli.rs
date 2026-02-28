@@ -18,8 +18,11 @@ pub enum Commands {
     /// Transcribe an audio file
     Transcribe(TranscribeArgs),
 
-    /// Push-to-talk microphone dictation for Linux X11
-    Mic(MicArgs),
+    /// Microphone daemon and trigger commands
+    Mic {
+        #[command(subcommand)]
+        command: MicCommand,
+    },
 
     /// Manage model registry and local cache
     Models {
@@ -105,12 +108,33 @@ pub struct TranscribeArgs {
     pub passthrough: Vec<String>,
 }
 
+#[derive(Debug, Clone, Subcommand)]
+pub enum MicCommand {
+    /// Run microphone daemon (long-running)
+    Daemon(MicDaemonArgs),
+
+    /// Start microphone recording
+    Start(MicControlArgs),
+
+    /// Stop recording, transcribe, and type output
+    Stop(MicControlArgs),
+
+    /// Toggle recording/transcription cycle
+    Toggle(MicControlArgs),
+
+    /// Show daemon status
+    Status(MicControlArgs),
+
+    /// Ask daemon to shut down
+    Shutdown(MicControlArgs),
+}
+
 #[derive(Debug, Clone, Args)]
 #[command(trailing_var_arg = true)]
-pub struct MicArgs {
-    /// Global push-to-talk hotkey (X11 keyspec)
+pub struct MicDaemonArgs {
+    /// Unix socket path for mic daemon
     #[arg(long)]
-    pub hotkey: Option<String>,
+    pub socket: Option<PathBuf>,
 
     /// Microphone source passed to ffmpeg pulse input
     #[arg(long)]
@@ -144,10 +168,6 @@ pub struct MicArgs {
     #[arg(long)]
     pub translate: bool,
 
-    /// Run a single press/release cycle and exit
-    #[arg(long)]
-    pub once: bool,
-
     /// Do not type into active window; print transcript to stdout
     #[arg(long)]
     pub dry_run: bool,
@@ -155,4 +175,11 @@ pub struct MicArgs {
     /// Extra whisper.cpp flags passed through after `--`
     #[arg(allow_hyphen_values = true, num_args = 0..)]
     pub passthrough: Vec<String>,
+}
+
+#[derive(Debug, Clone, Args)]
+pub struct MicControlArgs {
+    /// Unix socket path for mic daemon
+    #[arg(long)]
+    pub socket: Option<PathBuf>,
 }

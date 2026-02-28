@@ -9,6 +9,7 @@ KEEP_TEMP="${KEEP_TEMP:-0}"
 
 TMP_HOME="$(mktemp -d)"
 MIN_PATH="/usr/bin:/bin:/usr/sbin:/sbin"
+LOCAL_PATH="${TMP_HOME}/.local/bin:${MIN_PATH}"
 
 cleanup() {
   local exit_code=$?
@@ -45,6 +46,10 @@ echo "== installed binaries =="
 env HOME="${TMP_HOME}" PATH="${MIN_PATH}" bash -lc 'ls -l "$HOME/.local/bin/whisperx" "$HOME/.local/bin/whisper-cli"'
 
 echo
+echo "== installed mic helpers =="
+env HOME="${TMP_HOME}" PATH="${MIN_PATH}" bash -lc 'ls -l "$HOME/.local/bin"/whisperx-mic-*'
+
+echo
 echo "== installed runtime libs =="
 env HOME="${TMP_HOME}" PATH="${MIN_PATH}" bash -lc 'ls -l "$HOME/.local/bin"/libwhisper.so* "$HOME/.local/bin"/libggml*.so*'
 
@@ -53,6 +58,10 @@ echo "== version/help/doctor =="
 env HOME="${TMP_HOME}" PATH="${MIN_PATH}" bash -lc '"$HOME/.local/bin/whisperx" --version'
 env HOME="${TMP_HOME}" PATH="${MIN_PATH}" bash -lc '"$HOME/.local/bin/whisperx" --help >/dev/null'
 env HOME="${TMP_HOME}" PATH="${MIN_PATH}" bash -lc '"$HOME/.local/bin/whisperx" doctor'
+
+echo
+echo "== mic daemon controls (dry-run) =="
+env HOME="${TMP_HOME}" PATH="${LOCAL_PATH}" bash -lc 'set -euo pipefail; socket="$HOME/.cache/whisperx/mic-test.sock"; whisperx-mic-daemon --dry-run --socket "$socket" >"$HOME/mic-daemon.log" 2>&1 & daemon_pid=$!; for _ in $(seq 1 50); do [ -S "$socket" ] && break; sleep 0.1; done; test -S "$socket"; whisperx-mic-status --socket "$socket"; whisperx-mic-shutdown --socket "$socket"; wait "$daemon_pid"'
 
 echo
 echo "== config + models =="

@@ -14,7 +14,7 @@ pub struct AppConfig {
     pub threads: usize,
     pub language: String,
     pub convert: bool,
-    pub mic_hotkey: String,
+    pub mic_socket: PathBuf,
     pub mic_source: String,
     pub mic_min_seconds: f32,
     pub timeout_secs: u64,
@@ -31,7 +31,9 @@ struct FileConfig {
     threads: Option<usize>,
     language: Option<String>,
     convert: Option<bool>,
-    mic_hotkey: Option<String>,
+    #[serde(rename = "mic_hotkey")]
+    _deprecated_mic_hotkey: Option<String>,
+    mic_socket: Option<PathBuf>,
     mic_source: Option<String>,
     mic_min_seconds: Option<f32>,
     timeout_secs: Option<u64>,
@@ -48,7 +50,7 @@ impl Default for AppConfig {
             threads: 4,
             language: "en".to_string(),
             convert: true,
-            mic_hotkey: "Ctrl+Alt+Space".to_string(),
+            mic_socket: default_mic_socket_path(),
             mic_source: "default".to_string(),
             mic_min_seconds: 0.2,
             timeout_secs: 3600,
@@ -82,8 +84,8 @@ impl AppConfig {
         if let Some(convert) = file.convert {
             self.convert = convert;
         }
-        if let Some(mic_hotkey) = file.mic_hotkey {
-            self.mic_hotkey = mic_hotkey;
+        if let Some(mic_socket) = file.mic_socket {
+            self.mic_socket = mic_socket;
         }
         if let Some(mic_source) = file.mic_source {
             self.mic_source = mic_source;
@@ -110,6 +112,7 @@ pub fn load(config_path_override: Option<&PathBuf>) -> Result<(AppConfig, PathBu
     }
 
     config.model_dir = expand_tilde(&config.model_dir);
+    config.mic_socket = expand_tilde(&config.mic_socket);
 
     Ok((config, path))
 }
@@ -153,6 +156,15 @@ fn default_model_dir() -> PathBuf {
         .join("models")
 }
 
+fn default_mic_socket_path() -> PathBuf {
+    if let Some(runtime) = dirs::runtime_dir() {
+        return runtime.join("whisperx").join("mic.sock");
+    }
+
+    let user = std::env::var("USER").unwrap_or_else(|_| "user".to_string());
+    PathBuf::from(format!("/tmp/whisperx-{user}/mic.sock"))
+}
+
 pub fn expand_tilde(path: &Path) -> PathBuf {
     let raw = path.to_string_lossy();
     if raw == "~" {
@@ -188,7 +200,8 @@ mod tests {
             threads: Some(8),
             language: Some("auto".to_string()),
             convert: Some(false),
-            mic_hotkey: Some("Ctrl+Shift+Space".to_string()),
+            _deprecated_mic_hotkey: None,
+            mic_socket: Some(PathBuf::from("~/mic.sock")),
             mic_source: Some("alsa_input".to_string()),
             mic_min_seconds: Some(0.35),
             timeout_secs: Some(123),
@@ -204,7 +217,7 @@ mod tests {
         assert_eq!(config.threads, 8);
         assert_eq!(config.language, "auto");
         assert!(!config.convert);
-        assert_eq!(config.mic_hotkey, "Ctrl+Shift+Space");
+        assert_eq!(config.mic_socket, PathBuf::from("~/mic.sock"));
         assert_eq!(config.mic_source, "alsa_input");
         assert_eq!(config.mic_min_seconds, 0.35);
         assert_eq!(config.timeout_secs, 123);

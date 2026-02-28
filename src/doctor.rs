@@ -79,9 +79,9 @@ pub fn run(config: &AppConfig) -> Result<()> {
     print_info(
         "x11 display",
         if display_set {
-            "DISPLAY is set (mic mode available on X11)"
+            "DISPLAY is set (mic typing mode available on X11)"
         } else {
-            "DISPLAY not set (mic mode unavailable in this shell)"
+            "DISPLAY not set (mic typing mode unavailable in this shell)"
         },
     );
 
@@ -89,10 +89,14 @@ pub fn run(config: &AppConfig) -> Result<()> {
     print_info(
         "xdotool",
         if xdotool_ok {
-            "found (mic text injection available)"
+            "found (mic daemon text injection available)"
         } else {
-            "not found (install xdotool for `whisperx mic` typing)"
+            "not found (install xdotool for `whisperx mic daemon` typing)"
         },
+    );
+    print_info(
+        "mic socket",
+        &format!("configured at {}", config.mic_socket.display()),
     );
 
     println!("\nEffective config:");
