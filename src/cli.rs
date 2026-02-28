@@ -1,0 +1,103 @@
+use std::path::PathBuf;
+
+use clap::{Args, Parser, Subcommand, ValueEnum};
+
+#[derive(Debug, Parser)]
+#[command(name = "whisperx", version, about = "DX-first wrapper for whisper.cpp")]
+pub struct Cli {
+    /// Path to config file (defaults to OS-specific user config dir)
+    #[arg(long, global = true)]
+    pub config: Option<PathBuf>,
+
+    #[command(subcommand)]
+    pub command: Commands,
+}
+
+#[derive(Debug, Subcommand)]
+pub enum Commands {
+    /// Transcribe an audio file
+    Transcribe(TranscribeArgs),
+
+    /// Manage model registry and local cache
+    Models {
+        #[command(subcommand)]
+        command: ModelsCommand,
+    },
+
+    /// Initialize or inspect local config
+    Config {
+        #[command(subcommand)]
+        command: ConfigCommand,
+    },
+
+    /// Check environment and print actionable diagnostics
+    Doctor,
+}
+
+#[derive(Debug, Clone, Subcommand)]
+pub enum ModelsCommand {
+    /// List available models and installed status
+    List,
+
+    /// Install a model into the local model cache
+    Install { name: String },
+
+    /// Print model cache directory
+    Path,
+}
+
+#[derive(Debug, Clone, Subcommand)]
+pub enum ConfigCommand {
+    /// Write a default config file
+    Init {
+        /// Overwrite existing config file
+        #[arg(long)]
+        force: bool,
+    },
+
+    /// Show effective config (defaults + file)
+    Show,
+}
+
+#[derive(Debug, Copy, Clone, Eq, PartialEq, ValueEnum)]
+pub enum OutputFormat {
+    Txt,
+    Json,
+    Srt,
+    Vtt,
+}
+
+#[derive(Debug, Clone, Args)]
+#[command(trailing_var_arg = true)]
+pub struct TranscribeArgs {
+    /// Input audio file path
+    pub input: PathBuf,
+
+    /// Model name from the registry (e.g. base.en)
+    #[arg(long)]
+    pub model: Option<String>,
+
+    /// Output format to print to stdout
+    #[arg(long, value_enum, default_value_t = OutputFormat::Txt)]
+    pub output: OutputFormat,
+
+    /// Disable ffmpeg normalization and pass the input directly to whisper-cli
+    #[arg(long)]
+    pub no_convert: bool,
+
+    /// Number of threads for whisper-cli
+    #[arg(long)]
+    pub threads: Option<usize>,
+
+    /// Language code passed to whisper-cli, use "auto" to disable explicit language
+    #[arg(long)]
+    pub language: Option<String>,
+
+    /// Set whisper-cli translate mode
+    #[arg(long)]
+    pub translate: bool,
+
+    /// Pass-through whisper.cpp flags after `--`
+    #[arg(last = true, allow_hyphen_values = true)]
+    pub passthrough: Vec<String>,
+}
