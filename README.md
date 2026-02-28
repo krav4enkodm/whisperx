@@ -11,12 +11,14 @@ It adds:
 
 ## Install
 
-Build locally:
+Linux/macOS (no Cargo required):
 
 ```bash
-cargo build --release
-./target/release/whisperx --help
+curl -fsSL https://raw.githubusercontent.com/krav4enkodm/whisperx/main/scripts/install.sh | bash
 ```
+
+The installer downloads the latest GitHub Release binary for your OS/arch and installs it to `~/.local/bin/whisperx`.
+If needed, add `~/.local/bin` to `PATH`.
 
 ## Quickstart
 
