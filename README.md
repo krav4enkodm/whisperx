@@ -27,7 +27,7 @@ sudo apt install -y ffmpeg xdotool xclip
 ```
 
 Notes:
-- `xclip` is optional, but recommended (clipboard copy before typing).
+- `xclip` is optional (needed only when `mic_output = "clipboard"`).
 - On non-Ubuntu Linux distributions, install equivalent packages.
 
 ## Install (latest GitHub release)
@@ -127,7 +127,11 @@ whisperx-mic-toggle
 
 Expected behavior:
 - first toggle: starts recording
-- second toggle: stops, transcribes, copies to clipboard (best-effort), types text into focused window
+- second toggle: stops and transcribes, then emits text according to `mic_output` mode
+
+Mic output mode:
+- `mic_output = "type"` (default): type transcript into focused window
+- `mic_output = "clipboard"`: copy transcript to clipboard only
 
 ## Autostart daemon on login (systemd user service)
 
@@ -231,7 +235,7 @@ convert = true
 mic_socket = "/tmp/whisperx-user/mic.sock"
 mic_source = "default"
 mic_min_seconds = 0.2
-mic_copy_to_clipboard = true
+mic_output = "type"
 clipboard_bin = "xclip"
 timeout_secs = 3600
 ```

@@ -16,7 +16,7 @@ use wait_timeout::ChildExt;
 
 use crate::binaries;
 use crate::cli::{MicCommand, MicControlArgs, MicDaemonArgs};
-use crate::config::AppConfig;
+use crate::config::{AppConfig, MicOutputMode};
 use crate::transcribe;
 
 const RELEASE_TIMEOUT: Duration = Duration::from_secs(5);
@@ -77,7 +77,7 @@ struct MicDaemonState {
     ffmpeg_bin: String,
     source: String,
     min_seconds: f32,
-    mic_copy_to_clipboard: bool,
+    mic_output: MicOutputMode,
     clipboard_bin: String,
     xdotool_bin: String,
     dry_run: bool,
@@ -115,12 +115,13 @@ fn run_daemon(config: &AppConfig, args: &MicDaemonArgs) -> Result<()> {
         .clone()
         .unwrap_or_else(|| config.mic_source.clone());
     let min_seconds = args.min_seconds.unwrap_or(config.mic_min_seconds);
+    let mic_output = config.mic_output;
 
     if !binaries::binary_available(Path::new(&ffmpeg_bin)) {
         bail!("ffmpeg binary '{}' not found", ffmpeg_bin);
     }
 
-    if !args.dry_run {
+    if !args.dry_run && matches!(mic_output, MicOutputMode::Type) {
         let display = std::env::var("DISPLAY").unwrap_or_default();
         if display.trim().is_empty() {
             bail!("DISPLAY is not set. mic typing mode requires an X11 session");
@@ -132,6 +133,16 @@ fn run_daemon(config: &AppConfig, args: &MicDaemonArgs) -> Result<()> {
                 xdotool_bin
             );
         }
+    }
+
+    if !args.dry_run
+        && matches!(mic_output, MicOutputMode::Clipboard)
+        && !binaries::binary_available(Path::new(&config.clipboard_bin))
+    {
+        bail!(
+            "clipboard binary '{}' not found (required for mic_output='clipboard')",
+            config.clipboard_bin
+        );
     }
 
     let whisper_bin = binaries::resolve_whisper_bin(config);
@@ -192,7 +203,7 @@ fn run_daemon(config: &AppConfig, args: &MicDaemonArgs) -> Result<()> {
         ffmpeg_bin,
         source,
         min_seconds,
-        mic_copy_to_clipboard: config.mic_copy_to_clipboard,
+        mic_output,
         clipboard_bin: config.clipboard_bin.clone(),
         xdotool_bin,
         dry_run: args.dry_run,
@@ -312,7 +323,8 @@ fn process_action(state: &mut MicDaemonState, action: MicAction) -> Result<(Stri
                 return Ok(("ok: already recording".to_string(), false));
             }
 
-            let active_window = if state.dry_run {
+            let active_window = if state.dry_run || !matches!(state.mic_output, MicOutputMode::Type)
+            {
                 None
             } else {
                 capture_active_window(&state.xdotool_bin)
@@ -340,11 +352,12 @@ fn process_action(state: &mut MicDaemonState, action: MicAction) -> Result<(Stri
                 let message = finalize_recording_cycle(state, recording)?;
                 Ok((message, false))
             } else {
-                let active_window = if state.dry_run {
-                    None
-                } else {
-                    capture_active_window(&state.xdotool_bin)
-                };
+                let active_window =
+                    if state.dry_run || !matches!(state.mic_output, MicOutputMode::Type) {
+                        None
+                    } else {
+                        capture_active_window(&state.xdotool_bin)
+                    };
                 let recording = start_recording(&state.ffmpeg_bin, &state.source, active_window)
                     .with_context(|| {
                         format!(
@@ -404,22 +417,19 @@ fn finalize_recording_cycle(
     if state.dry_run {
         println!("{text}");
     } else {
-        if let Some(window_id) = completed.active_window.as_deref()
-            && let Err(err) = restore_window_focus(&state.xdotool_bin, window_id)
-        {
-            eprintln!("warning: failed to restore window focus: {err:#}");
+        match state.mic_output {
+            MicOutputMode::Type => {
+                if let Some(window_id) = completed.active_window.as_deref()
+                    && let Err(err) = restore_window_focus(&state.xdotool_bin, window_id)
+                {
+                    eprintln!("warning: failed to restore window focus: {err:#}");
+                }
+                inject_text(&state.xdotool_bin, &text)?;
+            }
+            MicOutputMode::Clipboard => {
+                copy_to_clipboard(&state.clipboard_bin, &text)?;
+            }
         }
-
-        if state.mic_copy_to_clipboard
-            && let Err(err) = copy_to_clipboard(&state.clipboard_bin, &text)
-        {
-            eprintln!(
-                "warning: clipboard copy failed using '{}': {err:#}",
-                state.clipboard_bin
-            );
-        }
-
-        inject_text(&state.xdotool_bin, &text)?;
     }
 
     Ok(format!("ok: transcribed {} chars", text.chars().count()))

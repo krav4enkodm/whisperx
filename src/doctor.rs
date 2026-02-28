@@ -6,7 +6,7 @@ use anyhow::{Result, bail};
 
 use crate::binaries;
 use crate::cache;
-use crate::config::AppConfig;
+use crate::config::{AppConfig, MicOutputMode};
 
 pub fn run(config: &AppConfig) -> Result<()> {
     let mut failures = 0_u32;
@@ -76,37 +76,44 @@ pub fn run(config: &AppConfig) -> Result<()> {
     let display_set = std::env::var("DISPLAY")
         .map(|value| !value.trim().is_empty())
         .unwrap_or(false);
-    print_info(
-        "x11 display",
-        if display_set {
-            "DISPLAY is set (mic typing mode available on X11)"
-        } else {
-            "DISPLAY not set (mic typing mode unavailable in this shell)"
-        },
-    );
-
-    let xdotool_ok = binaries::binary_available(Path::new(&config.xdotool_bin));
-    print_info(
-        "xdotool",
-        if xdotool_ok {
-            "found (mic daemon text injection available)"
-        } else {
-            "not found (install xdotool for `whisperx mic daemon` typing)"
-        },
-    );
+    print_info("mic output mode", config.mic_output.as_str());
     let clipboard_ok = binaries::binary_available(Path::new(&config.clipboard_bin));
-    print_info(
-        "clipboard",
-        if config.mic_copy_to_clipboard {
-            if clipboard_ok {
-                "enabled and command available"
-            } else {
-                "enabled but command not found (copy will be skipped with warning)"
-            }
-        } else {
-            "disabled"
-        },
-    );
+
+    match config.mic_output {
+        MicOutputMode::Type => {
+            print_info(
+                "x11 display",
+                if display_set {
+                    "DISPLAY is set (mic typing mode available on X11)"
+                } else {
+                    "DISPLAY not set (mic typing mode unavailable in this shell)"
+                },
+            );
+
+            let xdotool_ok = binaries::binary_available(Path::new(&config.xdotool_bin));
+            print_info(
+                "xdotool",
+                if xdotool_ok {
+                    "found (typing output mode available)"
+                } else {
+                    "not found (install xdotool for mic_output='type')"
+                },
+            );
+            print_info("clipboard", "unused in mic_output='type'");
+        }
+        MicOutputMode::Clipboard => {
+            print_info("x11 display", "not required for mic_output='clipboard'");
+            print_info("xdotool", "unused in mic_output='clipboard'");
+            print_info(
+                "clipboard",
+                if clipboard_ok {
+                    "command available"
+                } else {
+                    "command not found (install clipboard tool and set clipboard_bin)"
+                },
+            );
+        }
+    }
     print_info(
         "mic socket",
         &format!("configured at {}", config.mic_socket.display()),

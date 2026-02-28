@@ -4,6 +4,22 @@ use std::path::{Path, PathBuf};
 use anyhow::{Context, Result, bail};
 use serde::{Deserialize, Serialize};
 
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum MicOutputMode {
+    Type,
+    Clipboard,
+}
+
+impl MicOutputMode {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Type => "type",
+            Self::Clipboard => "clipboard",
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize)]
 pub struct AppConfig {
     pub default_model: String,
@@ -17,7 +33,7 @@ pub struct AppConfig {
     pub mic_socket: PathBuf,
     pub mic_source: String,
     pub mic_min_seconds: f32,
-    pub mic_copy_to_clipboard: bool,
+    pub mic_output: MicOutputMode,
     pub clipboard_bin: String,
     pub timeout_secs: u64,
 }
@@ -38,7 +54,9 @@ struct FileConfig {
     mic_socket: Option<PathBuf>,
     mic_source: Option<String>,
     mic_min_seconds: Option<f32>,
-    mic_copy_to_clipboard: Option<bool>,
+    mic_output: Option<MicOutputMode>,
+    #[serde(rename = "mic_copy_to_clipboard")]
+    _deprecated_mic_copy_to_clipboard: Option<bool>,
     clipboard_bin: Option<String>,
     timeout_secs: Option<u64>,
 }
@@ -57,7 +75,7 @@ impl Default for AppConfig {
             mic_socket: default_mic_socket_path(),
             mic_source: "default".to_string(),
             mic_min_seconds: 0.2,
-            mic_copy_to_clipboard: true,
+            mic_output: MicOutputMode::Type,
             clipboard_bin: "xclip".to_string(),
             timeout_secs: 3600,
         }
@@ -99,8 +117,8 @@ impl AppConfig {
         if let Some(mic_min_seconds) = file.mic_min_seconds {
             self.mic_min_seconds = mic_min_seconds;
         }
-        if let Some(mic_copy_to_clipboard) = file.mic_copy_to_clipboard {
-            self.mic_copy_to_clipboard = mic_copy_to_clipboard;
+        if let Some(mic_output) = file.mic_output {
+            self.mic_output = mic_output;
         }
         if let Some(clipboard_bin) = file.clipboard_bin {
             self.clipboard_bin = clipboard_bin;
@@ -198,7 +216,7 @@ mod tests {
 
     use pretty_assertions::assert_eq;
 
-    use super::{AppConfig, FileConfig, expand_tilde};
+    use super::{AppConfig, FileConfig, MicOutputMode, expand_tilde};
 
     #[test]
     fn applies_file_overrides() {
@@ -216,7 +234,8 @@ mod tests {
             mic_socket: Some(PathBuf::from("~/mic.sock")),
             mic_source: Some("alsa_input".to_string()),
             mic_min_seconds: Some(0.35),
-            mic_copy_to_clipboard: Some(false),
+            mic_output: Some(MicOutputMode::Clipboard),
+            _deprecated_mic_copy_to_clipboard: None,
             clipboard_bin: Some("/usr/bin/xclip".to_string()),
             timeout_secs: Some(123),
         };
@@ -234,7 +253,7 @@ mod tests {
         assert_eq!(config.mic_socket, PathBuf::from("~/mic.sock"));
         assert_eq!(config.mic_source, "alsa_input");
         assert_eq!(config.mic_min_seconds, 0.35);
-        assert!(!config.mic_copy_to_clipboard);
+        assert_eq!(config.mic_output, MicOutputMode::Clipboard);
         assert_eq!(config.clipboard_bin, "/usr/bin/xclip");
         assert_eq!(config.timeout_secs, 123);
     }
@@ -243,5 +262,17 @@ mod tests {
     fn expands_tilde_prefix() {
         let home = dirs::home_dir().expect("home dir expected in test env");
         assert_eq!(expand_tilde(&PathBuf::from("~/tmp")), home.join("tmp"));
+    }
+
+    #[test]
+    fn accepts_deprecated_mic_copy_to_clipboard_field() {
+        let mut config = AppConfig::default();
+        let file = FileConfig {
+            _deprecated_mic_copy_to_clipboard: Some(true),
+            ..FileConfig::default()
+        };
+
+        config.apply_file_config(file);
+        assert_eq!(config.mic_output, MicOutputMode::Type);
     }
 }

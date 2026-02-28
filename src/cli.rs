@@ -116,7 +116,7 @@ pub enum MicCommand {
     /// Start microphone recording
     Start(MicControlArgs),
 
-    /// Stop recording, transcribe, and type output
+    /// Stop recording and emit transcript according to configured mic output mode
     Stop(MicControlArgs),
 
     /// Toggle recording/transcription cycle
@@ -168,7 +168,7 @@ pub struct MicDaemonArgs {
     #[arg(long)]
     pub translate: bool,
 
-    /// Do not type into active window; print transcript to stdout
+    /// Do not emit to desktop (typing/clipboard); print transcript to stdout
     #[arg(long)]
     pub dry_run: bool,
 
