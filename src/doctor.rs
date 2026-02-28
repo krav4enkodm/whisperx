@@ -94,6 +94,19 @@ pub fn run(config: &AppConfig) -> Result<()> {
             "not found (install xdotool for `whisperx mic daemon` typing)"
         },
     );
+    let clipboard_ok = binaries::binary_available(Path::new(&config.clipboard_bin));
+    print_info(
+        "clipboard",
+        if config.mic_copy_to_clipboard {
+            if clipboard_ok {
+                "enabled and command available"
+            } else {
+                "enabled but command not found (copy will be skipped with warning)"
+            }
+        } else {
+            "disabled"
+        },
+    );
     print_info(
         "mic socket",
         &format!("configured at {}", config.mic_socket.display()),

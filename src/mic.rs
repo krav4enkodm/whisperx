@@ -21,6 +21,7 @@ use crate::transcribe;
 
 const RELEASE_TIMEOUT: Duration = Duration::from_secs(5);
 const POLL_DELAY: Duration = Duration::from_millis(25);
+const WINDOW_RESTORE_DELAY: Duration = Duration::from_millis(50);
 const TYPING_CHUNK_SIZE: usize = 2048;
 
 #[derive(Debug, Copy, Clone)]
@@ -60,6 +61,7 @@ struct ActiveRecording {
     temp_dir: TempDir,
     wav_path: PathBuf,
     started_at: Instant,
+    active_window: Option<String>,
 }
 
 struct CompletedRecording {
@@ -67,6 +69,7 @@ struct CompletedRecording {
     temp_dir: TempDir,
     wav_path: PathBuf,
     duration_secs: f32,
+    active_window: Option<String>,
 }
 
 struct MicDaemonState {
@@ -74,6 +77,8 @@ struct MicDaemonState {
     ffmpeg_bin: String,
     source: String,
     min_seconds: f32,
+    mic_copy_to_clipboard: bool,
+    clipboard_bin: String,
     xdotool_bin: String,
     dry_run: bool,
     model: Option<String>,
@@ -187,6 +192,8 @@ fn run_daemon(config: &AppConfig, args: &MicDaemonArgs) -> Result<()> {
         ffmpeg_bin,
         source,
         min_seconds,
+        mic_copy_to_clipboard: config.mic_copy_to_clipboard,
+        clipboard_bin: config.clipboard_bin.clone(),
         xdotool_bin,
         dry_run: args.dry_run,
         model: args.model.clone(),
@@ -305,8 +312,13 @@ fn process_action(state: &mut MicDaemonState, action: MicAction) -> Result<(Stri
                 return Ok(("ok: already recording".to_string(), false));
             }
 
-            let recording =
-                start_recording(&state.ffmpeg_bin, &state.source).with_context(|| {
+            let active_window = if state.dry_run {
+                None
+            } else {
+                capture_active_window(&state.xdotool_bin)
+            };
+            let recording = start_recording(&state.ffmpeg_bin, &state.source, active_window)
+                .with_context(|| {
                     format!(
                         "failed starting microphone capture for source '{}'",
                         state.source
@@ -328,8 +340,13 @@ fn process_action(state: &mut MicDaemonState, action: MicAction) -> Result<(Stri
                 let message = finalize_recording_cycle(state, recording)?;
                 Ok((message, false))
             } else {
-                let recording =
-                    start_recording(&state.ffmpeg_bin, &state.source).with_context(|| {
+                let active_window = if state.dry_run {
+                    None
+                } else {
+                    capture_active_window(&state.xdotool_bin)
+                };
+                let recording = start_recording(&state.ffmpeg_bin, &state.source, active_window)
+                    .with_context(|| {
                         format!(
                             "failed starting microphone capture for source '{}'",
                             state.source
@@ -379,7 +396,7 @@ fn finalize_recording_cycle(
         state.passthrough.clone(),
     )?;
 
-    let text = transcript.trim();
+    let text = normalize_transcript_text(&transcript);
     if text.is_empty() {
         return Ok("ok: empty transcript".to_string());
     }
@@ -387,7 +404,22 @@ fn finalize_recording_cycle(
     if state.dry_run {
         println!("{text}");
     } else {
-        inject_text(&state.xdotool_bin, text)?;
+        if let Some(window_id) = completed.active_window.as_deref()
+            && let Err(err) = restore_window_focus(&state.xdotool_bin, window_id)
+        {
+            eprintln!("warning: failed to restore window focus: {err:#}");
+        }
+
+        if state.mic_copy_to_clipboard
+            && let Err(err) = copy_to_clipboard(&state.clipboard_bin, &text)
+        {
+            eprintln!(
+                "warning: clipboard copy failed using '{}': {err:#}",
+                state.clipboard_bin
+            );
+        }
+
+        inject_text(&state.xdotool_bin, &text)?;
     }
 
     Ok(format!("ok: transcribed {} chars", text.chars().count()))
@@ -416,7 +448,11 @@ fn ensure_whisper_runnable(whisper_bin: &Path) -> Result<()> {
     Ok(())
 }
 
-fn start_recording(ffmpeg_bin: &str, source: &str) -> Result<ActiveRecording> {
+fn start_recording(
+    ffmpeg_bin: &str,
+    source: &str,
+    active_window: Option<String>,
+) -> Result<ActiveRecording> {
     let temp_dir =
         tempfile::tempdir().context("failed to create temporary microphone directory")?;
     let wav_path = temp_dir.path().join("capture.wav");
@@ -451,6 +487,7 @@ fn start_recording(ffmpeg_bin: &str, source: &str) -> Result<ActiveRecording> {
         temp_dir,
         wav_path,
         started_at: Instant::now(),
+        active_window,
     })
 }
 
@@ -493,7 +530,73 @@ fn stop_recording(mut recording: ActiveRecording) -> Result<CompletedRecording> 
         temp_dir: recording.temp_dir,
         wav_path: recording.wav_path,
         duration_secs: recording.started_at.elapsed().as_secs_f32(),
+        active_window: recording.active_window,
     })
+}
+
+fn capture_active_window(xdotool_bin: &str) -> Option<String> {
+    let output = Command::new(xdotool_bin)
+        .arg("getactivewindow")
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .output()
+        .ok()?;
+
+    if !output.status.success() {
+        return None;
+    }
+
+    let window = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    if window.is_empty() {
+        return None;
+    }
+
+    Some(window)
+}
+
+fn restore_window_focus(xdotool_bin: &str, window_id: &str) -> Result<()> {
+    let status = Command::new(xdotool_bin)
+        .arg("windowactivate")
+        .arg(window_id)
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::piped())
+        .status()
+        .with_context(|| format!("failed running '{}'", xdotool_bin))?;
+
+    if !status.success() {
+        bail!("xdotool failed to activate window {window_id}");
+    }
+
+    thread::sleep(WINDOW_RESTORE_DELAY);
+    Ok(())
+}
+
+fn copy_to_clipboard(clipboard_bin: &str, text: &str) -> Result<()> {
+    let mut child = Command::new(clipboard_bin)
+        .arg("-selection")
+        .arg("clipboard")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()
+        .with_context(|| format!("failed starting '{}'", clipboard_bin))?;
+
+    if let Some(mut stdin) = child.stdin.take() {
+        stdin
+            .write_all(text.as_bytes())
+            .with_context(|| format!("failed writing to '{}'", clipboard_bin))?;
+    }
+    std::thread::spawn(move || {
+        let _ = child.wait();
+    });
+
+    Ok(())
+}
+
+fn normalize_transcript_text(text: &str) -> String {
+    text.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
 fn inject_text(xdotool_bin: &str, text: &str) -> Result<()> {
@@ -546,7 +649,7 @@ fn split_typing_chunks(text: &str, max_chars: usize) -> Vec<&str> {
 
 #[cfg(test)]
 mod tests {
-    use super::{MicAction, split_typing_chunks};
+    use super::{MicAction, normalize_transcript_text, split_typing_chunks};
 
     #[test]
     fn parses_supported_actions() {
@@ -571,5 +674,11 @@ mod tests {
     fn splits_long_typing_chunks() {
         let chunks = split_typing_chunks("abcdefghij", 4);
         assert_eq!(chunks, vec!["abcd", "efgh", "ij"]);
+    }
+
+    #[test]
+    fn normalizes_whitespace_for_injection() {
+        let text = " please   do\nthis \t now ";
+        assert_eq!(normalize_transcript_text(text), "please do this now");
     }
 }

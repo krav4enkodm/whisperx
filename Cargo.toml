@@ -1,6 +1,6 @@
 [package]
 name = "whisperx"
-version = "0.1.5"
+version = "0.1.9"
 edition = "2024"
 description = "A DX-first CLI wrapper around whisper.cpp"
 license = "MIT"

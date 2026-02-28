@@ -17,6 +17,8 @@ pub struct AppConfig {
     pub mic_socket: PathBuf,
     pub mic_source: String,
     pub mic_min_seconds: f32,
+    pub mic_copy_to_clipboard: bool,
+    pub clipboard_bin: String,
     pub timeout_secs: u64,
 }
 
@@ -36,6 +38,8 @@ struct FileConfig {
     mic_socket: Option<PathBuf>,
     mic_source: Option<String>,
     mic_min_seconds: Option<f32>,
+    mic_copy_to_clipboard: Option<bool>,
+    clipboard_bin: Option<String>,
     timeout_secs: Option<u64>,
 }
 
@@ -53,6 +57,8 @@ impl Default for AppConfig {
             mic_socket: default_mic_socket_path(),
             mic_source: "default".to_string(),
             mic_min_seconds: 0.2,
+            mic_copy_to_clipboard: true,
+            clipboard_bin: "xclip".to_string(),
             timeout_secs: 3600,
         }
     }
@@ -92,6 +98,12 @@ impl AppConfig {
         }
         if let Some(mic_min_seconds) = file.mic_min_seconds {
             self.mic_min_seconds = mic_min_seconds;
+        }
+        if let Some(mic_copy_to_clipboard) = file.mic_copy_to_clipboard {
+            self.mic_copy_to_clipboard = mic_copy_to_clipboard;
+        }
+        if let Some(clipboard_bin) = file.clipboard_bin {
+            self.clipboard_bin = clipboard_bin;
         }
         if let Some(timeout_secs) = file.timeout_secs {
             self.timeout_secs = timeout_secs;
@@ -204,6 +216,8 @@ mod tests {
             mic_socket: Some(PathBuf::from("~/mic.sock")),
             mic_source: Some("alsa_input".to_string()),
             mic_min_seconds: Some(0.35),
+            mic_copy_to_clipboard: Some(false),
+            clipboard_bin: Some("/usr/bin/xclip".to_string()),
             timeout_secs: Some(123),
         };
 
@@ -220,6 +234,8 @@ mod tests {
         assert_eq!(config.mic_socket, PathBuf::from("~/mic.sock"));
         assert_eq!(config.mic_source, "alsa_input");
         assert_eq!(config.mic_min_seconds, 0.35);
+        assert!(!config.mic_copy_to_clipboard);
+        assert_eq!(config.clipboard_bin, "/usr/bin/xclip");
         assert_eq!(config.timeout_secs, 123);
     }
 

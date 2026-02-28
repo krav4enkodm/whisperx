@@ -2,42 +2,155 @@
 
 `whisperx` is a DX-first CLI wrapper around `whisper.cpp`.
 
-It adds:
+It provides:
 - Config file with sane defaults
 - Model registry + local cache management
 - Automatic model ensure on transcription
 - Optional ffmpeg normalization to 16kHz mono WAV
 - Full whisper.cpp passthrough flags after `--`
-- Microphone daemon + local trigger script flow for flexible shortcut binding
+- Microphone daemon + toggle/start/stop helper commands
 
-## Install
+## Supported platform
 
-Linux x86_64 (no Cargo required):
+- Linux (focused on Ubuntu)
+- X11 session required for mic text injection (`xdotool` typing)
+
+## Dependencies (Ubuntu)
+
+Install runtime dependencies:
+
+```bash
+sudo apt update
+sudo apt install -y ffmpeg xdotool xclip
+```
+
+Notes:
+- `xclip` is optional, but recommended (clipboard copy before typing).
+- On non-Ubuntu Linux distributions, install equivalent packages.
+
+## Install (latest GitHub release)
+
+This installs prebuilt binaries to `~/.local/bin`:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/krav4enkodm/whisperx/main/scripts/install.sh | bash
 ```
 
-The installer downloads the latest GitHub Release binaries and installs:
+Installed files:
 - `~/.local/bin/whisperx`
 - `~/.local/bin/whisper-cli` (bundled)
-- bundled `libwhisper.so*` / `libggml*.so*` runtime libraries
-- helper commands: `whisperx-mic-daemon`, `whisperx-mic-start`, `whisperx-mic-stop`, `whisperx-mic-toggle`, `whisperx-mic-status`, `whisperx-mic-shutdown`
+- `~/.local/bin/libwhisper.so*` / `~/.local/bin/libggml*.so*`
+- `~/.local/bin/whisperx-mic-{daemon,start,stop,toggle,status,shutdown}`
 
 If needed, add `~/.local/bin` to `PATH`.
 
-## Quickstart
+## Install from source (local development)
+
+Use this when testing local changes before publishing:
+
+```bash
+cargo build --release
+install -m 0755 target/release/whisperx ~/.local/bin/whisperx
+install -m 0755 scripts/whisperx-mic-daemon.sh ~/.local/bin/whisperx-mic-daemon
+install -m 0755 scripts/whisperx-mic-toggle.sh ~/.local/bin/whisperx-mic-toggle
+install -m 0755 scripts/whisperx-mic-start.sh ~/.local/bin/whisperx-mic-start
+install -m 0755 scripts/whisperx-mic-stop.sh ~/.local/bin/whisperx-mic-stop
+install -m 0755 scripts/whisperx-mic-status.sh ~/.local/bin/whisperx-mic-status
+install -m 0755 scripts/whisperx-mic-shutdown.sh ~/.local/bin/whisperx-mic-shutdown
+```
+
+If `whisper-cli` is not already available on your machine, either:
+- run release installer once (installs bundled `whisper-cli`), or
+- set `whisper_bin` in config to your system `whisper-cli` path.
+
+## Clean install from scratch (local machine)
+
+Optional cleanup of previous local install:
+
+```bash
+rm -f ~/.local/bin/whisperx ~/.local/bin/whisper-cli
+rm -f ~/.local/bin/whisperx-mic-daemon ~/.local/bin/whisperx-mic-toggle ~/.local/bin/whisperx-mic-start
+rm -f ~/.local/bin/whisperx-mic-stop ~/.local/bin/whisperx-mic-status ~/.local/bin/whisperx-mic-shutdown
+rm -f ~/.local/bin/libwhisper.so* ~/.local/bin/libggml*.so*
+```
+
+Fresh install:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/krav4enkodm/whisperx/main/scripts/install.sh | bash
+```
+
+Validate install:
+
+```bash
+whisperx --version
+whisperx doctor
+```
+
+## First-time setup
+
+Initialize config:
 
 ```bash
 whisperx config init
-whisperx models list
-whisperx models install base.en
-whisperx transcribe audio.mp3
+whisperx config show
 ```
 
-Dependency:
-- `ffmpeg` must be installed on the machine.
-- `xdotool` is required when microphone output should be typed into the active window.
+Install model and test file transcription:
+
+```bash
+whisperx models install base.en
+whisperx transcribe /path/to/audio.wav
+```
+
+## Microphone mode (recommended setup)
+
+`whisperx mic toggle` is a pure control command and expects daemon to already be running.
+
+Start daemon manually (for quick testing):
+
+```bash
+whisperx-mic-daemon
+```
+
+In another terminal:
+
+```bash
+whisperx-mic-toggle
+whisperx-mic-toggle
+```
+
+Expected behavior:
+- first toggle: starts recording
+- second toggle: stops, transcribes, copies to clipboard (best-effort), types text into focused window
+
+## Autostart daemon on login (systemd user service)
+
+Create service:
+
+```bash
+mkdir -p ~/.config/systemd/user
+cp scripts/whisperx-mic-daemon.service ~/.config/systemd/user/
+systemctl --user daemon-reload
+systemctl --user enable --now whisperx-mic-daemon.service
+```
+
+Check status/logs:
+
+```bash
+systemctl --user status whisperx-mic-daemon.service
+journalctl --user -u whisperx-mic-daemon.service -f
+```
+
+## Hotkey binding
+
+Bind your desktop shortcut to:
+
+```bash
+bash -lc "$HOME/.local/bin/whisperx-mic-toggle"
+```
+
+Using `bash -lc` avoids common desktop environment `PATH` issues.
 
 ## Commands
 
@@ -47,6 +160,8 @@ whisperx mic daemon
 whisperx mic start
 whisperx mic stop
 whisperx mic toggle
+whisperx mic status
+whisperx mic shutdown
 whisperx models list
 whisperx models install <name>
 whisperx models path
@@ -55,7 +170,9 @@ whisperx config show
 whisperx doctor
 ```
 
-## Transcribe flags
+## Transcribe examples
+
+Friendly flags:
 
 ```bash
 whisperx transcribe audio.mp3 \
@@ -65,21 +182,13 @@ whisperx transcribe audio.mp3 \
   --output txt
 ```
 
-Output options:
-- `txt`
-- `json`
-- `srt`
-- `vtt`
-
 Disable conversion:
 
 ```bash
 whisperx transcribe audio.wav --no-convert
 ```
 
-## Advanced passthrough
-
-Pass any native whisper.cpp flags after `--`:
+Pass native whisper.cpp args after `--`:
 
 ```bash
 whisperx transcribe audio.mp3 -- --beam-size 5 --max-tokens 256
@@ -87,25 +196,7 @@ whisperx transcribe audio.mp3 -- --beam-size 5 --max-tokens 256
 
 If a flag appears in passthrough, it overrides friendly wrapper flags.
 
-## Microphone dictation daemon
-
-Start daemon (keep this running):
-
-```bash
-whisperx mic daemon
-```
-
-Trigger commands from terminal or shortcut scripts:
-
-```bash
-whisperx mic start
-whisperx mic stop
-whisperx mic toggle
-whisperx mic status
-whisperx mic shutdown
-```
-
-Daemon flags:
+## Mic daemon flags
 
 ```bash
 whisperx mic daemon --source default --min-seconds 0.2
@@ -113,36 +204,9 @@ whisperx mic daemon --dry-run
 whisperx mic daemon -- --beam-size 5
 ```
 
-Helper commands installed by `scripts/install.sh` (recommended for shortcut bindings):
+## Default config file
 
-```bash
-whisperx-mic-daemon
-whisperx-mic-toggle
-whisperx-mic-start
-whisperx-mic-stop
-whisperx-mic-status
-whisperx-mic-shutdown
-```
-
-Repo scripts with equivalent behavior:
-
-```bash
-scripts/start-mic.sh
-scripts/whisperx-mic-toggle.sh
-scripts/whisperx-mic-start.sh
-scripts/whisperx-mic-stop.sh
-scripts/whisperx-mic-status.sh
-scripts/whisperx-mic-shutdown.sh
-```
-
-Recommended setup:
-- keep `whisperx-mic-daemon` running in background/session startup
-- bind desktop shortcut to `whisperx-mic-toggle`
-- optional hold-style setup: bind key-down -> `whisperx-mic-start`, key-up -> `whisperx-mic-stop` (if your hotkey tool supports key press/release hooks)
-
-## Config file
-
-Default path:
+Path:
 - Linux: `~/.config/whisperx/config.toml`
 - macOS: `~/Library/Application Support/whisperx/config.toml`
 
@@ -160,25 +224,42 @@ convert = true
 mic_socket = "/tmp/whisperx-user/mic.sock"
 mic_source = "default"
 mic_min_seconds = 0.2
+mic_copy_to_clipboard = true
+clipboard_bin = "xclip"
 timeout_secs = 3600
 ```
 
-`mic_socket` default:
+`mic_socket` default behavior:
 - Linux: `${XDG_RUNTIME_DIR}/whisperx/mic.sock` when `XDG_RUNTIME_DIR` exists
 - fallback: `/tmp/whisperx-$USER/mic.sock`
 
-## Environment checks
+## Publish a new release
 
-Run:
+Release automation is in `.github/workflows/release.yml` and runs on `v*` tags.
+
+Typical publish flow:
 
 ```bash
-whisperx doctor
+# 1) run checks locally
+cargo test
+
+# 2) commit changes
+git add .
+git commit -m "release: <summary>"
+
+# 3) create and push tag
+git tag v0.1.6
+git push origin main
+git push origin v0.1.6
 ```
 
-This checks:
-- `ffmpeg` availability
-- `whisper-cli` availability and runnable state (bundled or configured path)
-- model cache directory writability
-- x11 display/`xdotool` status for mic typing mode
-- configured mic daemon socket path
-- effective config summary
+GitHub Actions will:
+- build release artifacts
+- create checksums
+- publish GitHub Release assets
+
+After publish, validate from scratch using:
+
+```bash
+scripts/test-clean-install.sh
+```
