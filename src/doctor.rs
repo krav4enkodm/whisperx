@@ -3,6 +3,7 @@ use std::path::Path;
 
 use anyhow::{Result, bail};
 
+use crate::binaries;
 use crate::cache;
 use crate::config::AppConfig;
 
@@ -27,20 +28,17 @@ pub fn run(config: &AppConfig) -> Result<()> {
         failures += 1;
     }
 
-    let whisper_ok = which::which(&config.whisper_bin).is_ok();
-    print_check(
-        whisper_ok,
-        "whisper-cli",
-        &format!(
-            "binary '{}'{}",
-            config.whisper_bin,
-            if whisper_ok {
-                " found"
-            } else {
-                " not found in PATH"
-            }
-        ),
-    );
+    let whisper_bin = binaries::resolve_whisper_bin(config);
+    let whisper_ok = binaries::binary_available(&whisper_bin);
+    let whisper_details = if whisper_ok {
+        format!("resolved to '{}'", whisper_bin.display())
+    } else {
+        format!(
+            "resolved to '{}' (not found). Set whisper_bin in config if needed",
+            whisper_bin.display()
+        )
+    };
+    print_check(whisper_ok, "whisper-cli", &whisper_details);
     if !whisper_ok {
         failures += 1;
     }
@@ -76,8 +74,7 @@ pub fn run(config: &AppConfig) -> Result<()> {
         }
         if !whisper_ok {
             println!(
-                "- Install/build whisper.cpp and ensure '{}' resolves via PATH, or set whisper_bin in config",
-                config.whisper_bin
+                "- Ensure bundled 'whisper-cli' is present next to 'whisperx', or set whisper_bin to a valid binary path"
             );
         }
         if !model_dir_ok {

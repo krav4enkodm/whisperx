@@ -8,25 +8,19 @@ BINARY="whisperx"
 os="$(uname -s)"
 arch="$(uname -m)"
 
-case "${os}" in
-  Linux) platform="unknown-linux-gnu" ;;
-  Darwin) platform="apple-darwin" ;;
-  *)
-    echo "Unsupported OS: ${os}" >&2
-    exit 1
-    ;;
-esac
+if [ "${os}" != "Linux" ]; then
+  echo "Unsupported OS: ${os}. This installer currently supports Linux x86_64 only." >&2
+  exit 1
+fi
 
 case "${arch}" in
-  x86_64|amd64) cpu="x86_64" ;;
-  arm64|aarch64) cpu="aarch64" ;;
+  x86_64|amd64) target="x86_64-unknown-linux-gnu" ;;
   *)
-    echo "Unsupported architecture: ${arch}" >&2
+    echo "Unsupported architecture: ${arch}. This installer currently supports Linux x86_64 only." >&2
     exit 1
     ;;
 esac
 
-target="${cpu}-${platform}"
 asset="${BINARY}-${target}.tar.gz"
 url="https://github.com/${REPO}/releases/latest/download/${asset}"
 
@@ -35,11 +29,22 @@ mkdir -p "${BIN_DIR}"
 tmpdir="$(mktemp -d)"
 trap 'rm -rf "${tmpdir}"' EXIT
 
-curl -fsSL "${url}" -o "${tmpdir}/${asset}"
+if ! curl -fsSL "${url}" -o "${tmpdir}/${asset}"; then
+  echo "Failed to download ${asset} from latest release." >&2
+  echo "Make sure a release exists with this asset: ${url}" >&2
+  exit 1
+fi
 tar -xzf "${tmpdir}/${asset}" -C "${tmpdir}"
 install -m 0755 "${tmpdir}/${BINARY}" "${BIN_DIR}/${BINARY}"
+if [ -f "${tmpdir}/whisper-cli" ]; then
+  install -m 0755 "${tmpdir}/whisper-cli" "${BIN_DIR}/whisper-cli"
+else
+  echo "Release artifact is missing bundled whisper-cli. Please open an issue." >&2
+  exit 1
+fi
 
 echo "Installed ${BINARY} to ${BIN_DIR}/${BINARY}"
+echo "Installed bundled whisper-cli to ${BIN_DIR}/whisper-cli"
 case ":$PATH:" in
   *":${BIN_DIR}:"*) ;;
   *)

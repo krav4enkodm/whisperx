@@ -11,13 +11,16 @@ It adds:
 
 ## Install
 
-Linux/macOS (no Cargo required):
+Linux x86_64 (no Cargo required):
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/krav4enkodm/whisperx/main/scripts/install.sh | bash
 ```
 
-The installer downloads the latest GitHub Release binary for your OS/arch and installs it to `~/.local/bin/whisperx`.
+The installer downloads the latest GitHub Release binaries and installs:
+- `~/.local/bin/whisperx`
+- `~/.local/bin/whisper-cli` (bundled)
+
 If needed, add `~/.local/bin` to `PATH`.
 
 ## Quickstart
@@ -28,6 +31,9 @@ whisperx models list
 whisperx models install base.en
 whisperx transcribe audio.mp3
 ```
+
+Dependency:
+- `ffmpeg` must be installed on the machine.
 
 ## Commands
 
@@ -84,7 +90,7 @@ Default contents:
 ```toml
 default_model = "base.en"
 model_dir = "~/.cache/whisperx/models"
-whisper_bin = "whisper-cli"
+whisper_bin = "auto"
 ffmpeg_bin = "ffmpeg"
 threads = 4
 language = "en"
@@ -102,6 +108,6 @@ whisperx doctor
 
 This checks:
 - `ffmpeg` availability
-- `whisper-cli` availability
+- `whisper-cli` availability (bundled or configured path)
 - model cache directory writability
 - effective config summary

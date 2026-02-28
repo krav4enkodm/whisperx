@@ -1,5 +1,5 @@
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::process::{Command, Output, Stdio};
 use std::time::Duration;
 
@@ -7,6 +7,7 @@ use anyhow::{Context, Result, bail};
 use tempfile::{Builder, TempDir};
 use wait_timeout::ChildExt;
 
+use crate::binaries;
 use crate::cli::{OutputFormat, TranscribeArgs};
 use crate::config::AppConfig;
 use crate::models;
@@ -28,7 +29,8 @@ pub fn run(config: &AppConfig, args: &TranscribeArgs) -> Result<()> {
     let output_dir = tempfile::tempdir().context("failed to create temporary output directory")?;
     let output_base = output_dir.path().join("whisperx-output");
 
-    let mut command = Command::new(&config.whisper_bin);
+    let whisper_bin = binaries::resolve_whisper_bin(config);
+    let mut command = Command::new(&whisper_bin);
     command
         .arg("-m")
         .arg(&model_path)
@@ -45,7 +47,11 @@ pub fn run(config: &AppConfig, args: &TranscribeArgs) -> Result<()> {
 
     command.args(&args.passthrough);
 
-    let output = run_with_timeout(command, timeout, "whisper-cli")?;
+    let output = run_with_timeout(
+        command,
+        timeout,
+        &format!("whisper-cli ({})", whisper_bin.display()),
+    )?;
 
     let result_path = output_file_path(&output_dir, args.output);
     if result_path.exists() {

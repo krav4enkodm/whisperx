@@ -34,7 +34,7 @@ impl Default for AppConfig {
         Self {
             default_model: "base.en".to_string(),
             model_dir: default_model_dir(),
-            whisper_bin: "whisper-cli".to_string(),
+            whisper_bin: "auto".to_string(),
             ffmpeg_bin: "ffmpeg".to_string(),
             threads: 4,
             language: "en".to_string(),
