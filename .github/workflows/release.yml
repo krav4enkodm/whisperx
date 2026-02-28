@@ -38,9 +38,10 @@ jobs:
         if: matrix.cuda
         uses: Jimver/cuda-toolkit@v0.2.25
         with:
-          cuda: "12.6.3"
+          cuda: "13.1.0"
           method: network
-          sub-packages: '["nvcc", "cudart-dev", "cublas-dev"]'
+          sub-packages: '["nvcc", "cudart-dev"]'
+          non-cuda-sub-packages: '["libcublas-dev"]'
 
       - name: Build binary
         run: cargo build --release --target ${{ matrix.target }}
