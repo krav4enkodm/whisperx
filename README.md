@@ -1,118 +1,123 @@
 # whisperx
 
-`whisperx` is a DX-first CLI wrapper around `whisper.cpp`.
+A DX-first CLI wrapper around [whisper.cpp](https://github.com/ggml-org/whisper.cpp) — the open-source speech-to-text engine by [ggml-org](https://github.com/ggml-org).
 
-Upstream project: [ggml-org/whisper.cpp](https://github.com/ggml-org/whisper.cpp).
+whisperx handles the tedious parts so you can focus on transcription:
 
-It provides:
-- Config file with sane defaults
-- Model registry + local cache management
-- Automatic model ensure on transcription
-- Optional ffmpeg normalization to 16kHz mono WAV
-- Full whisper.cpp passthrough flags after `--`
-- Microphone daemon + toggle/start/stop helper commands
+- Sane defaults via config file
+- Model registry with local cache management
+- Automatic model download on first transcription
+- ffmpeg normalization to 16kHz mono WAV
+- Full whisper.cpp flag passthrough after `--`
+- Microphone daemon with toggle/start/stop helpers and hotkey binding
 
-## Supported platform
+## Requirements
 
-- Linux (focused on Ubuntu)
-- X11 session required for mic text injection (`xdotool` typing)
-
-## Dependencies (Ubuntu)
-
-Install runtime dependencies:
+- Linux (focused on Ubuntu, X11 session for mic text injection)
+- Runtime dependencies:
 
 ```bash
 sudo apt update
 sudo apt install -y ffmpeg xdotool xclip
 ```
 
-Notes:
-- `xclip` is optional (needed only when `mic_output = "clipboard"`).
-- On non-Ubuntu Linux distributions, install equivalent packages.
+`xclip` is optional — only needed when `mic_output = "clipboard"`.
 
-## Install (latest GitHub release)
+## Install
 
-This installs prebuilt binaries to `~/.local/bin`:
+Everything installs to `~/.local/bin`. Pick one of the options below.
 
-```bash
-curl -fsSL https://raw.githubusercontent.com/krav4enkodm/whisperx/main/scripts/install.sh | bash
-```
+### Option A: CPU-only (default)
 
-Installed files:
-- `~/.local/bin/whisperx`
-- `~/.local/bin/whisper-cli` (bundled)
-- `~/.local/bin/libwhisper.so*` / `~/.local/bin/libggml*.so*`
-- `~/.local/bin/whisperx-mic-{daemon,start,stop,toggle,status,shutdown}`
-
-If needed, add `~/.local/bin` to `PATH`.
-
-## Install from source (local development)
-
-Use this when testing local changes before publishing:
-
-```bash
-cargo build --release
-install -m 0755 target/release/whisperx ~/.local/bin/whisperx
-install -m 0755 scripts/whisperx-mic-daemon.sh ~/.local/bin/whisperx-mic-daemon
-install -m 0755 scripts/whisperx-mic-toggle.sh ~/.local/bin/whisperx-mic-toggle
-install -m 0755 scripts/whisperx-mic-start.sh ~/.local/bin/whisperx-mic-start
-install -m 0755 scripts/whisperx-mic-stop.sh ~/.local/bin/whisperx-mic-stop
-install -m 0755 scripts/whisperx-mic-status.sh ~/.local/bin/whisperx-mic-status
-install -m 0755 scripts/whisperx-mic-shutdown.sh ~/.local/bin/whisperx-mic-shutdown
-```
-
-If `whisper-cli` is not already available on your machine, either:
-- run release installer once (installs bundled `whisper-cli`), or
-- set `whisper_bin` in config to your system `whisper-cli` path.
-
-## Clean install from scratch (local machine)
-
-Optional cleanup of previous local install:
-
-```bash
-rm -f ~/.local/bin/whisperx ~/.local/bin/whisper-cli
-rm -f ~/.local/bin/whisperx-mic-daemon ~/.local/bin/whisperx-mic-toggle ~/.local/bin/whisperx-mic-start
-rm -f ~/.local/bin/whisperx-mic-stop ~/.local/bin/whisperx-mic-status ~/.local/bin/whisperx-mic-shutdown
-rm -f ~/.local/bin/libwhisper.so* ~/.local/bin/libggml*.so*
-```
-
-Fresh install:
+Works on any Linux x86_64 machine. Good for smaller models (tiny, base, small).
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/krav4enkodm/whisperx/main/scripts/install.sh | bash
 ```
 
-Validate install:
+### Option B: CUDA (NVIDIA GPU)
+
+Recommended if you have an NVIDIA GPU. Gives a dramatic speedup with larger
+models (medium, large) — inference becomes near-instant, fully offloaded to GPU.
+
+First, make sure NVIDIA drivers and CUDA runtime are installed:
+
+```bash
+sudo apt install -y nvidia-cuda-toolkit
+```
+
+Then install with the `--cuda` flag:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/krav4enkodm/whisperx/main/scripts/install.sh | bash -s -- --cuda
+```
+
+| Backend | Transcription time (medium model, ~10s audio) | CPU usage |
+|---------|-----------------------------------------------|-----------|
+| CPU-only | Several seconds | High |
+| CUDA | Near-instant | Minimal |
+
+### Option C: Custom whisper.cpp build (advanced)
+
+Both options above bundle a prebuilt `whisper-cli`. If you need a custom build
+(different CUDA version, other accelerator backends, special flags), build
+[whisper.cpp](https://github.com/ggml-org/whisper.cpp) yourself:
+
+```bash
+git clone https://github.com/ggml-org/whisper.cpp.git
+cd whisper.cpp
+cmake -B build -DGGML_CUDA=ON    # or other flags
+cmake --build build --config Release -j$(nproc)
+```
+
+Then point whisperx at your build in `~/.config/whisperx/config.toml`:
+
+```toml
+whisper_bin = "/path/to/whisper.cpp/build/bin/whisper-cli"
+```
+
+### Installed files
+
+After any install option, `~/.local/bin` will contain:
+
+- `whisperx` — main CLI
+- `whisper-cli` — bundled whisper.cpp binary
+- `libwhisper.so*`, `libggml*.so*` — shared libraries
+- `whisperx-mic-{daemon,start,stop,toggle,status,shutdown}` — mic helpers
+
+Add `~/.local/bin` to your `PATH` if it isn't already.
+
+### Verify installation
 
 ```bash
 whisperx --version
 whisperx doctor
 ```
 
-## First-time setup
+## Getting started
 
-Initialize config:
+Initialize config and install a model:
 
 ```bash
 whisperx config init
-whisperx config show
+whisperx models install base.en
 ```
 
-Install model and test file transcription:
+Transcribe a file:
 
 ```bash
-whisperx models install base.en
 whisperx transcribe /path/to/audio.wav
 ```
 
-`whisperx models list` includes the full upstream `whisper.cpp` GGML downloadable set (including quantized variants).
-Upstream model source list: [models/download-ggml-model.sh](https://github.com/ggml-org/whisper.cpp/blob/master/models/download-ggml-model.sh).
+`whisperx models list` shows the full upstream whisper.cpp GGML model set
+(including quantized variants). Source list:
+[models/download-ggml-model.sh](https://github.com/ggml-org/whisper.cpp/blob/master/models/download-ggml-model.sh).
 
-## Microphone mode (recommended setup)
+## Microphone mode
 
-`whisperx mic toggle` is a pure control command and expects daemon to already be running.
+The mic daemon listens for toggle commands and transcribes on stop.
 
-Start daemon manually (for quick testing):
+Start the daemon:
 
 ```bash
 whisperx-mic-daemon
@@ -121,21 +126,15 @@ whisperx-mic-daemon
 In another terminal:
 
 ```bash
-whisperx-mic-toggle
-whisperx-mic-toggle
+whisperx-mic-toggle    # starts recording
+whisperx-mic-toggle    # stops, transcribes, emits text
 ```
 
-Expected behavior:
-- first toggle: starts recording
-- second toggle: stops and transcribes, then emits text according to `mic_output` mode
+Output modes:
+- `mic_output = "type"` (default) — types transcript into the focused window
+- `mic_output = "clipboard"` — copies transcript to clipboard
 
-Mic output mode:
-- `mic_output = "type"` (default): type transcript into focused window
-- `mic_output = "clipboard"`: copy transcript to clipboard only
-
-## Autostart daemon on login (systemd user service)
-
-Create service:
+### Autostart on login (systemd)
 
 ```bash
 mkdir -p ~/.config/systemd/user
@@ -144,14 +143,14 @@ systemctl --user daemon-reload
 systemctl --user enable --now whisperx-mic-daemon.service
 ```
 
-Check status/logs:
+Check status:
 
 ```bash
 systemctl --user status whisperx-mic-daemon.service
 journalctl --user -u whisperx-mic-daemon.service -f
 ```
 
-## Hotkey binding
+### Hotkey binding
 
 Bind your desktop shortcut to:
 
@@ -159,53 +158,45 @@ Bind your desktop shortcut to:
 bash -lc "$HOME/.local/bin/whisperx-mic-toggle"
 ```
 
-Using `bash -lc` avoids common desktop environment `PATH` issues.
+`bash -lc` avoids common desktop environment `PATH` issues.
 
 ## Commands
 
-```bash
-whisperx transcribe <file>
-whisperx mic daemon
-whisperx mic start
-whisperx mic stop
-whisperx mic toggle
-whisperx mic status
-whisperx mic shutdown
-whisperx models list
-whisperx models install <name>
-whisperx models path
-whisperx config init
-whisperx config show
-whisperx doctor
+```
+whisperx transcribe <file>       Transcribe an audio file
+whisperx mic daemon              Start mic daemon
+whisperx mic start               Start recording
+whisperx mic stop                Stop recording and transcribe
+whisperx mic toggle              Toggle recording on/off
+whisperx mic status              Show daemon status
+whisperx mic shutdown            Stop the daemon
+whisperx models list             List available models
+whisperx models install <name>   Download a model
+whisperx models path             Show model cache directory
+whisperx config init             Create default config
+whisperx config show             Print current config
+whisperx doctor                  Check installation health
 ```
 
 ## Transcribe examples
 
-Friendly flags:
-
 ```bash
+# Friendly flags
 whisperx transcribe audio.mp3 \
   --model base.en \
   --threads 8 \
   --language en \
   --output txt
-```
 
-Disable conversion:
-
-```bash
+# Skip ffmpeg conversion for pre-converted WAV files
 whisperx transcribe audio.wav --no-convert
-```
 
-Pass native whisper.cpp args after `--`:
-
-See upstream CLI/flags in [whisper.cpp](https://github.com/ggml-org/whisper.cpp).
-
-```bash
+# Pass native whisper.cpp flags after --
 whisperx transcribe audio.mp3 -- --beam-size 5 --max-tokens 256
 ```
 
-If a flag appears in passthrough, it overrides friendly wrapper flags.
+Passthrough flags override friendly wrapper flags. See upstream
+[whisper.cpp](https://github.com/ggml-org/whisper.cpp) for all available flags.
 
 ## Mic daemon flags
 
@@ -215,11 +206,9 @@ whisperx mic daemon --dry-run
 whisperx mic daemon -- --beam-size 5
 ```
 
-## Default config file
+## Config
 
-Path:
-- Linux: `~/.config/whisperx/config.toml`
-- macOS: `~/Library/Application Support/whisperx/config.toml`
+Path: `~/.config/whisperx/config.toml`
 
 Default contents:
 
@@ -240,36 +229,64 @@ clipboard_bin = "xclip"
 timeout_secs = 3600
 ```
 
-`mic_socket` default behavior:
-- Linux: `${XDG_RUNTIME_DIR}/whisperx/mic.sock` when `XDG_RUNTIME_DIR` exists
-- fallback: `/tmp/whisperx-$USER/mic.sock`
+`mic_socket` defaults to `${XDG_RUNTIME_DIR}/whisperx/mic.sock` when
+`XDG_RUNTIME_DIR` exists, otherwise `/tmp/whisperx-$USER/mic.sock`.
+
+## Uninstall
+
+Remove all installed files:
+
+```bash
+rm -f ~/.local/bin/whisperx ~/.local/bin/whisper-cli
+rm -f ~/.local/bin/whisperx-mic-{daemon,start,stop,toggle,status,shutdown}
+rm -f ~/.local/bin/libwhisper.so* ~/.local/bin/libggml*.so*
+```
+
+Remove config and cached models (optional):
+
+```bash
+rm -rf ~/.config/whisperx
+rm -rf ~/.cache/whisperx
+```
+
+If you set up the systemd service, disable it first:
+
+```bash
+systemctl --user disable --now whisperx-mic-daemon.service
+rm -f ~/.config/systemd/user/whisperx-mic-daemon.service
+systemctl --user daemon-reload
+```
+
+## Install from source
+
+For local development and testing:
+
+```bash
+cargo build --release
+install -m 0755 target/release/whisperx ~/.local/bin/whisperx
+```
+
+If `whisper-cli` is not already available, either run the release installer
+once (to get the bundled binary) or set `whisper_bin` in config to your
+system `whisper-cli` path.
 
 ## Publish a new release
 
 Release automation is in `.github/workflows/release.yml` and runs on `v*` tags.
 
-Typical publish flow:
-
 ```bash
-# 1) run checks locally
 cargo test
-
-# 2) commit changes
 git add .
 git commit -m "release: <summary>"
-
-# 3) create and push tag
-git tag v0.1.6
+git tag v0.1.12
 git push origin main
-git push origin v0.1.6
+git push origin v0.1.12
 ```
 
-GitHub Actions will:
-- build release artifacts
-- create checksums
-- publish GitHub Release assets
+GitHub Actions builds both CPU and CUDA release artifacts, creates checksums,
+and publishes the GitHub Release.
 
-After publish, validate from scratch using:
+Validate after publish:
 
 ```bash
 scripts/test-clean-install.sh

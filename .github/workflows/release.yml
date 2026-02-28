@@ -16,6 +16,10 @@ jobs:
         include:
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
+            cuda: false
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            cuda: true
 
     runs-on: ${{ matrix.os }}
 
@@ -30,6 +34,14 @@ jobs:
       - name: Install Linux build dependencies
         run: sudo apt-get update && sudo apt-get install -y cmake build-essential
 
+      - name: Install CUDA toolkit
+        if: matrix.cuda
+        uses: Jimver/cuda-toolkit@v0.2.25
+        with:
+          cuda: "12.6.3"
+          method: network
+          sub-packages: '["nvcc", "cudart-dev", "cublas-dev"]'
+
       - name: Build binary
         run: cargo build --release --target ${{ matrix.target }}
 
@@ -38,7 +50,11 @@ jobs:
           WHISPER_CPP_REF: v1.8.3
         run: |
           git clone --depth 1 --branch "${WHISPER_CPP_REF}" https://github.com/ggml-org/whisper.cpp.git whispercpp-src
-          cmake -S whispercpp-src -B whispercpp-src/build -DCMAKE_BUILD_TYPE=Release -DWHISPER_BUILD_EXAMPLES=ON -DWHISPER_BUILD_TESTS=OFF
+          cmake_flags="-DCMAKE_BUILD_TYPE=Release -DWHISPER_BUILD_EXAMPLES=ON -DWHISPER_BUILD_TESTS=OFF"
+          if [ "${{ matrix.cuda }}" = "true" ]; then
+            cmake_flags="${cmake_flags} -DGGML_CUDA=ON"
+          fi
+          cmake -S whispercpp-src -B whispercpp-src/build ${cmake_flags}
           cmake --build whispercpp-src/build --config Release --target whisper-cli -j"$(nproc)"
           WHISPER_CLI_PATH="$(find whispercpp-src/build -type f -name whisper-cli | head -n 1)"
           test -n "${WHISPER_CLI_PATH}"
@@ -47,7 +63,11 @@ jobs:
       - name: Package artifact
         run: |
           target="${{ matrix.target }}"
-          artifact="whisperx-${target}.tar.gz"
+          suffix=""
+          if [ "${{ matrix.cuda }}" = "true" ]; then
+            suffix="-cuda"
+          fi
+          artifact="whisperx-${target}${suffix}.tar.gz"
           mkdir -p package
           install -m 0755 "target/${target}/release/whisperx" "package/whisperx"
           install -m 0755 "./whisper-cli" "package/whisper-cli"
@@ -63,10 +83,10 @@ jobs:
       - name: Upload build outputs
         uses: actions/upload-artifact@v4
         with:
-          name: release-${{ matrix.target }}
+          name: release-${{ matrix.target }}${{ matrix.cuda && '-cuda' || '' }}
           path: |
-            whisperx-${{ matrix.target }}.tar.gz
-            whisperx-${{ matrix.target }}.tar.gz.sha256
+            whisperx-${{ matrix.target }}${{ matrix.cuda && '-cuda' || '' }}.tar.gz
+            whisperx-${{ matrix.target }}${{ matrix.cuda && '-cuda' || '' }}.tar.gz.sha256
 
   publish:
     needs: build

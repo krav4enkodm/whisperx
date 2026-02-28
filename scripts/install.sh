@@ -5,6 +5,13 @@ REPO="${WHISPERX_REPO:-krav4enkodm/whisperx}"
 BIN_DIR="${HOME}/.local/bin"
 BINARY="whisperx"
 
+cuda="${WHISPERX_CUDA:-0}"
+for arg in "$@"; do
+  case "${arg}" in
+    --cuda) cuda=1 ;;
+  esac
+done
+
 os="$(uname -s)"
 arch="$(uname -m)"
 
@@ -21,7 +28,12 @@ case "${arch}" in
     ;;
 esac
 
-asset="${BINARY}-${target}.tar.gz"
+suffix=""
+if [ "${cuda}" = "1" ]; then
+  suffix="-cuda"
+fi
+
+asset="${BINARY}-${target}${suffix}.tar.gz"
 url="https://github.com/${REPO}/releases/latest/download/${asset}"
 
 mkdir -p "${BIN_DIR}"
@@ -57,6 +69,16 @@ fi
 if ! ls "${BIN_DIR}"/libggml*.so* >/dev/null 2>&1; then
   echo "Release artifact is missing libggml runtime libraries. Please use a newer release." >&2
   exit 1
+fi
+
+if [ "${cuda}" = "1" ]; then
+  if ! ldconfig -p 2>/dev/null | grep -q libcudart; then
+    echo ""
+    echo "WARNING: CUDA variant installed but libcudart was not found on this system." >&2
+    echo "The CUDA-enabled whisper-cli requires NVIDIA drivers and CUDA runtime libraries." >&2
+    echo "Install them with: sudo apt install -y nvidia-cuda-toolkit" >&2
+    echo ""
+  fi
 fi
 
 for action in daemon start stop toggle status shutdown; do
